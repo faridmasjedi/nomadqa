@@ -8,8 +8,9 @@ add it to your pipeline your own way; NomadQA does not ship a pipeline file.
 
 - **Node 22** or newer, and **Chrome** (or Chromium). GitHub's Ubuntu machines have both; on others, add them to the
   machine or its image. Nothing else to install.
-- The **`nomadqa` folder** in your repository: the command runs `nomadqa/runner/run.mjs`, and it uses
-  `nomadqa/extension/core`.
+- **NomadQA itself**, as a folder `nomadqa` in your repository or on the machine: clone this repository there
+  (`git clone <this repository> nomadqa`), add it as a git submodule, or copy it. The command runs
+  `nomadqa/runner/run.mjs`, which uses `nomadqa/extension/core`.
 - **Your tests** in the repository, for example in `tests/nomadqa/`. In NomadQA, **Tests › Download** saves a test as
   `*.nomadqa.json`; a group's download saves `*.nomadqa-group.json`.
 

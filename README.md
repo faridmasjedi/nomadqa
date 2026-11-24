@@ -1,8 +1,8 @@
 # NomadQA
 
-Testing for Salesforce, as a browser extension (Chrome and Edge). A separate product from NomadSF: its own folder,
-its own build, its own releases. It shares no code with NomadSF and needs **no packages** — plain JavaScript modules
-that the browser loads as they are.
+Testing for Salesforce, as a browser extension (Chrome and Edge), with a headless runner for CI. A sister of NomadSF,
+with its own repository, build and releases. It needs **no packages**: plain JavaScript modules that the browser
+loads as they are.
 
 ## Test data (first version)
 
@@ -138,7 +138,7 @@ to keep or share them anywhere.
 ## Try it
 
 1. `chrome://extensions` (or `edge://extensions`) › Developer mode › **Load unpacked** › choose
-   `nomadqa/extension`.
+   the `extension` folder of this repository.
 2. Log in to a Salesforce org in the same browser, then click the NomadQA button in the toolbar.
 
 NomadQA uses the browser's own Salesforce session (like Salesforce Inspector). Nothing is sent anywhere but to your
