@@ -10,5 +10,6 @@
     "pack": "node scripts/pack.mjs",
     "run-test": "node runner/run.mjs",
     "site": "node scripts/site.mjs"
-  }
+  },
+  "license": "MIT"
 }

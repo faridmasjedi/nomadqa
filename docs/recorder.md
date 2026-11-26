@@ -2,7 +2,7 @@
 
 Do it once in Salesforce. NomadQA writes the steps, by what you see.
 
-<video src="media/video/02-recorder-to-test.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/02-recorder-to-test.mp4" controls muted preload="metadata" poster="media/poster/02-recorder-to-test.jpg"></video>
 
 *The whole journey: open NomadQA, Recorder, record in your org, Stop, Save as a test.*
 

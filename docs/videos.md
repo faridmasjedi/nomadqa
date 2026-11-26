@@ -6,7 +6,7 @@ Recorded in a real scratch org with the real extension: every video is a whole j
 
 ### The NomadQA tour
 
-<video src="media/video/00-tour.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/00-tour.mp4" controls muted preload="metadata" poster="media/poster/00-tour.jpg"></video>
 
 ## Build a test
 
@@ -15,6 +15,7 @@ Recorded in a real scratch org with the real extension: every video is a whole j
 | [**From the Inspector to a saved test**](media/video/01-inspector-to-test.mp4) (1:50) | open NomadQA › Inspector › Inspect it · hover and pin · **Add** · **Details** · **Copy** · **By its exact path** · **Add** vs **Add and click** · **Just click** · **⇆** · follow a link · **Open in Tests** › **New test from them** |
 | [**From the Recorder to a saved test**](media/video/02-recorder-to-test.mp4) (1:10) | open NomadQA › Recorder › **Record in …** · App Launcher choice as one step · a list search · **+ Check** · **Stop** · **Save as a test** |
 | [**Write a test and keep it organized**](media/video/03-write-and-organize-tests.mp4) (1:15) | **+ New test** · step kinds · groups of steps · test groups · copy a step · **Download** · **Upload…** |
+| [**Start from the login page**](media/video/09-login-from-the-login-page.mp4) (2:00) | NomadQA on a Salesforce login page · a login saved in Settings · **Run (logs in first)** · logged in: **Run in …** and **Run from the login page** · the same logins from a `.env` file in a terminal, two tests side by side |
 | [**The Agent**](media/video/07-agent.mp4) (1:00) | Settings › provider · a sentence · **Write the steps** · a wrong step flagged · **Save and run** |
 
 ## Run, fix and share
@@ -52,6 +53,9 @@ Recorded in a real scratch org with the real extension: every video is a whole j
 | Check and create | [check-and-create](media/gif/check-and-create.gif) |
 | Batches | [batches](media/gif/batches.gif) |
 | Agent | [agent](media/gif/agent.gif) |
+| Start from the login page | [login-from-the-login-page](media/gif/login-from-the-login-page.gif) |
+| Both ways to run a login-first test | [login-both-options](media/gif/login-both-options.gif) |
+| Logins from a `.env` file | [env-run](media/gif/env-run.gif) |
 | Headless | [headless](media/gif/headless.gif) |
 
-Notes: the headless clip replays the real output of `node runner/run.mjs` with the waits shortened. The Agent video uses a stand-in AI that returns a prepared answer (see [Agent](agent.md)).
+Notes: the headless clip replays the real output of `node runner/run.mjs` with the waits shortened. The login video logs in with an SFDX auth URL through a stand-in token endpoint (it hands back the scratch org's own session, so the user is the same), and hides Salesforce's login-page promo panel, which errors in automation. The terminal part replays the runner's real output; the `.env` line shows `force://…` instead of the secret. The Agent video uses a stand-in AI that returns a prepared answer (see [Agent](agent.md)).

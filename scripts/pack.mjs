@@ -23,6 +23,7 @@ mkdirSync(join(base, 'runner'), { recursive: true });
 mkdirSync(join(base, 'extension'), { recursive: true });
 cpSync(join(root, 'runner/run.mjs'), join(base, 'runner/run.mjs'));
 cpSync(join(root, 'extension/core'), join(base, 'extension/core'), { recursive: true });
+cpSync(join(root, '.env.example'), join(base, '.env.example'));
 writeFileSync(
   join(base, 'README.txt'),
   `NomadQA ${version}: the headless runner.\n\nPut this "nomadqa" folder in your repository (or any machine with Node 22 and Chrome), then:\n\n  node nomadqa/runner/run.mjs tests/ --org my-sandbox\n  SF_AUTH_URL=... node nomadqa/runner/run.mjs tests/ --out nomadqa-reports\n\nGuide: https://github.com/faridmasjedi/nomadqa/blob/main/docs/ci.md\n`

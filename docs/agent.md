@@ -2,7 +2,7 @@
 
 Say what to test, in your own words. Your own AI writes the steps; NomadQA checks every one; you review and run.
 
-<video src="media/video/07-agent.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/07-agent.mp4" controls muted preload="metadata" poster="media/poster/07-agent.jpg"></video>
 
 > The video uses a **stand-in AI** on the same computer that answers with a prepared test, so it can be shown without anyone's key. With your own AI it writes the steps from your sentence.
 

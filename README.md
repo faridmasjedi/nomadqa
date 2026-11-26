@@ -40,8 +40,11 @@ How a QA creates the tests as an automation user, a ready GitHub Actions file wi
 ## Run it without anyone watching
 
 ```sh
-node runner/run.mjs examples --org my-sandbox
+node runner/run.mjs examples/01-open-pages.nomadqa.json --org my-sandbox   # with the Salesforce CLI
+node runner/run.mjs tests/nomadqa                  # logins from a .env file (SF_AUTH_URL, SF_USERNAME + SF_PASSWORD…)
 ```
+
+Put the logins in a `.env` file next to where you run it (never commit it); see [`.env.example`](.env.example).
 
 Node 22 and Chrome, nothing to install. You get `report.html`, JUnit and a picture of each failed step. For GitHub Actions, secrets, Google Cloud, AWS and keeping reports, see **[CI, secrets and reports](docs/ci.md)** and **[Run anywhere](RUN-ANYWHERE.md)**.
 
@@ -62,3 +65,11 @@ npm run site     # the website → site/
 ```
 
 `extension/` is the extension · `runner/` the headless runner · `examples/` ready tests · `docs/` the website.
+
+## Security
+
+Found a vulnerability? Please report it privately: [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) — free to use, copy and change.

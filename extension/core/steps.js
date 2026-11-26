@@ -117,7 +117,23 @@ export function pageRecord(url) {
  * run(step) → { ok, message, ms, optional?, shot? }; finish() deletes the test data (unless test.cleanup === false)
  * and logs back in as you; it returns how many records were deleted.
  */
-export function stepper(test, { driver, sf, describes = {}, logins = {} }) {
+export function stepper(test, { driver, sf: sf0, describes = {}, logins = {}, connect }) {
+  // A test that starts with a Log in step may have no org session yet: `sf` answers once `connect(driver)` has built
+  // it (right after a successful login), and says what is missing until then.
+  let realSf = sf0 ?? null;
+  const sf = new Proxy(
+    {},
+    {
+      get(_, key) {
+        if (!realSf) throw new Error('No org session yet: start the test with a Log in step.');
+        const v = realSf[key];
+        return typeof v === 'function' ? v.bind(realSf) : v;
+      },
+    }
+  );
+  const connectNow = async () => {
+    if (!realSf && connect) realSf = await connect(driver);
+  };
   const vars = {};
   const batches = [];
   const who = { as: null, userId: '' };
@@ -334,6 +350,7 @@ export function stepper(test, { driver, sf, describes = {}, logins = {} }) {
         if (loggedOut(here) && !/lightning/.test(here))
           throw new Error(`The auth URL of “${s.login}” did not log in (${here.slice(0, 80)}): it may be revoked.`);
         who.userId = a.userId;
+        await connectNow();
         return { ok: true, message: `Logged in as “${s.login}” with its SFDX auth URL` };
       }
       const url = l.url || 'https://login.salesforce.com';
@@ -364,6 +381,7 @@ export function stepper(test, { driver, sf, describes = {}, logins = {} }) {
             80
           )}): a wrong username or password, or Salesforce asks to verify it is you.`
         );
+      await connectNow();
       const u = await userOf(l.username).catch(() => null);
       who.userId = u?.Id ?? '';
       return { ok: true, message: `Logged in as ${l.username}` };
@@ -446,8 +464,8 @@ export function stepper(test, { driver, sf, describes = {}, logins = {} }) {
  * test.cleanup === false; a test that logged in as someone else ends logged in as you again.
  */
 /** Runs a test; `signal.on` (■ Stop) stops it: the step that runs ends now, no more run, test data is cleaned. */
-export async function runTest(test, { driver, sf, onStep = () => {}, describes = {}, logins = {}, signal } = {}) {
-  const st = stepper(test, { driver, sf, describes, logins });
+export async function runTest(test, { driver, sf, connect, onStep = () => {}, describes = {}, logins = {}, signal } = {}) {
+  const st = stepper(test, { driver, sf, describes, logins, connect });
   const results = [];
   const t0 = Date.now();
   let failed = false;
@@ -530,6 +548,8 @@ export function testsFromFile(text) {
   }
   const j = JSON.parse(t);
   const tests = j.nomadqa === 'group' && Array.isArray(j.tests) ? j.tests : [j];
+  // a test inside a group file is a test even when its own marker is missing
+  if (j.nomadqa === 'group') for (const x of tests) if (x && typeof x === 'object') x.nomadqa ??= 'test';
   for (const x of tests)
     if (x?.nomadqa !== 'test' || !Array.isArray(x.steps)) throw new Error('Not a NomadQA test file.');
   return tests;

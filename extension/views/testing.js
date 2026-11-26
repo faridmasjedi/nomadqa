@@ -13,7 +13,7 @@ import {
   testsFromFile,
 } from '../core/steps.js';
 import { PROVIDERS, stepsFromWords } from '../core/ai.js';
-import { apiHostFor } from '../core/salesforce.js';
+import { apiHostFor, Salesforce, sessionFor } from '../core/salesforce.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const newId = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -62,8 +62,9 @@ async function orgCookies(host) {
 
 /** Drives a tab of the org: a new one, `tabId` (a tab already there), or one in a window of its own (`window`:
  * where it goes on the screen — tests of a group running side by side). */
-async function tabDriver(host, { tabId, window: place } = {}) {
-  const home = `https://${host}/lightning/page/home`;
+async function tabDriver(host, { tabId, window: place, startUrl } = {}) {
+  // startUrl: a test that logs in first starts on a login page (not Lightning: nothing to wait for there)
+  const home = startUrl ?? `https://${host}/lightning/page/home`;
   const win = place
     ? await chrome.windows
         .create({ url: home, focused: true, ...place })
@@ -82,7 +83,7 @@ async function tabDriver(host, { tabId, window: place } = {}) {
   };
   chrome.tabs.onCreated.addListener(onCreated);
   await waitTab(cur.id);
-  await inTab(cur.id, () => globalThis.__nomadqa.ready(90000));
+  if (!startUrl) await inTab(cur.id, () => globalThis.__nomadqa.ready(90000));
   let kept = null;
   /** Runs one step once (never again: a click must not happen twice). */
   async function once(s) {
@@ -283,7 +284,7 @@ export function testingViews(ctx) {
   });
   const loginsMap = () =>
     Object.fromEntries(
-      T.logins.filter((l) => l.name).map((l) => [l.name, { url: l.url, username: l.username, password: l.password }])
+      T.logins.filter((l) => l.name).map((l) => [l.name, { url: l.url, username: l.username, password: l.password, authUrl: l.authUrl }])
     );
 
   async function load() {
@@ -1607,14 +1608,26 @@ export function testingViews(ctx) {
           },
           'Step by step on the page'
         ),
+        S.sf && loginStart(test)
+          ? h(
+              'button',
+              {
+                disabled: Boolean(S.busy) || !test.steps.length,
+                title: 'Starts on the login page and logs in with the login this test names (no session needed)',
+                onclick: () => void runHere(test, { fromLogin: true }),
+              },
+              'Run from the login page'
+            )
+          : null,
         h(
           'button',
           {
             class: 'primary',
-            disabled: !S.sf || Boolean(S.busy) || !test.steps.length,
+            disabled: (!S.sf && !loginStart(test)) || Boolean(S.busy) || !test.steps.length,
+            title: !S.sf && loginStart(test) ? 'Starts on the login page and logs in with the login this test names' : undefined,
             onclick: () => void runHere(test),
           },
-          `Run in ${label()}`
+          S.sf ? `Run in ${label()}` : 'Run (logs in first)'
         )
       ),
       h('div', { class: 'row' }, h('span', { class: 'muted small' }, 'Group'), ...groupPicker(test, changed)),
@@ -1852,16 +1865,46 @@ export function testingViews(ctx) {
     if (me) await chrome.tabs.update(me.id, { active: true }).catch(() => {});
   };
 
-  async function runHere(test) {
-    if (!(await okToRun([test], `“${test.name}”`))) return;
+  /** A test whose first step is Log in can start with no org session (from a Salesforce login page): the login it
+   * names is its start. → that login, or null. */
+  const loginStart = (test) => {
+    const first = test.steps?.[0];
+    return first?.action === 'login' ? loginsMap()[first.login] ?? null : null;
+  };
+  /** After the login step: the org the tab is in, with the session the login made. */
+  const connectFromTab = async (driver) => {
+    const host = apiHostFor(new URL(await driver.url()).host);
+    if (!host) throw new Error('The login did not end in a Salesforce org.');
+    return new Salesforce(host, await sessionFor(host));
+  };
+
+  async function runHere(test, { fromLogin = false } = {}) {
+    // No org yet (NomadQA opened from a login page), or "Run from the login page": the test logs in first; the org
+    // is known only after that
+    const start = !S.sf || fromLogin ? loginStart(test) : null;
+    if (!S.sf && !start) return toast('Start the test with a Log in step, or open NomadQA on a logged-in Salesforce page.');
+    if (start) {
+      const changes = allSteps(test).some((s) => ['click', 'fill', 'pick', 'lookup', 'check', 'data'].includes(s.action));
+      const name = test.steps[0].login;
+      if (
+        changes &&
+        !(await askTyped(
+          `“${test.name}” logs in as “${name}” and may change data. The org is not known until it logs in. Run it anyway?`,
+          name,
+          { ok: 'Run', danger: true }
+        ))
+      )
+        return;
+    } else if (!(await okToRun([test], `“${test.name}”`))) return;
     T.results = { testId: test.id, results: [] };
     await run(`Running “${test.name}”…`, async () => {
-      const driver = await tabDriver(S.host);
+      const driver = await tabDriver(S.host, start ? { startUrl: start.url || 'https://login.salesforce.com' } : {});
       const signal = stopper([driver]);
       const out = await runTest(test, {
         driver,
         signal,
-        sf: S.sf,
+        connect: start ? connectFromTab : undefined,
+        sf: start ? null : S.sf,
         describes: S.describes,
         logins: loginsMap(),
         onStep: (i, r) => {
