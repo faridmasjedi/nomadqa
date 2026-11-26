@@ -3,7 +3,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ['docs/**', 'README.md', 'RUN-ANYWHERE.md', 'scripts/site.mjs', '.github/workflows/pages.yml']
+    paths: ['docs/**', 'README.md', 'RUN-ANYWHERE.md', 'CHANGELOG.md', 'examples/**', 'extension/**', 'runner/**', 'scripts/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
