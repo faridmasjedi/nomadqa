@@ -1,35 +1,89 @@
-# Publishes a GitHub Release when a plain version tag is pushed: nomadqa-v0.3.0 → "NomadQA 0.3.0" with both zips and the
-# notes from that version's section of CHANGELOG.md.
+# Releases, in two steps:
+#
+# 1. Every merge into main keeps ONE draft release up to date for the version in extension/manifest.json
+#    (title "NomadQA <version>", notes = the top section of CHANGELOG.md, pointing at the newest commit of main).
+#    Nothing is public: it is a draft, and the tag does not exist yet.
+# 2. When you PUBLISH the draft, GitHub makes the tag (nomadqa-v<version>) at that commit, and this workflow builds the
+#    zips, attaches them to the release, and has the website rebuilt, so the Download and Versions pages show it.
+#
+# To start the next release: bump the version in extension/manifest.json and package.json (and add its section to the
+# top of CHANGELOG.md) in a pull request. A version that is already published is never drafted again.
 name: release
 on:
   push:
-    tags: ['nomadqa-v[0-9]+.[0-9]+.[0-9]+']      # a plain version; the build tags (…-build.7) never match
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
 permissions:
   contents: write
+  actions: write
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
-  release:
+  draft:
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Check the tag matches the version
+      - name: Keep the draft release of this version up to date
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          version="${GITHUB_REF_NAME#nomadqa-v}"
-          test "$version" = "$(node -p "require('./extension/manifest.json').version")" || { echo "Tag $GITHUB_REF_NAME does not match extension/manifest.json"; exit 1; }
+          version=$(node -p "require('./extension/manifest.json').version")
+          tag="nomadqa-v$version"
+          # the notes: the top section of the changelog
+          awk '/^## \[/ { n++; if (n == 2) exit } n == 1 { print }' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "CHANGELOG.md has no section to use as notes"; exit 1; }
+          pre=""
+          case "$version" in 0.*) pre="--prerelease" ;; esac
+          state=$(gh release view "$tag" --json isDraft --jq '.isDraft' 2>/dev/null || echo none)
+          case "$state" in
+            true)
+              gh release edit "$tag" --target "$GITHUB_SHA" --title "NomadQA $version" --notes-file notes.md $pre
+              echo "Updated the draft release \`$tag\` to $(git rev-parse --short HEAD)" >> "$GITHUB_STEP_SUMMARY" ;;
+            false)
+              echo "NomadQA $version is already published: bump the version for the next release." >> "$GITHUB_STEP_SUMMARY" ;;
+            *)
+              gh release create "$tag" --draft --target "$GITHUB_SHA" --title "NomadQA $version" --notes-file notes.md $pre
+              echo "Drafted the release \`$tag\` at $(git rev-parse --short HEAD). Publish it on the Releases page." >> "$GITHUB_STEP_SUMMARY" ;;
+          esac
+
+  publish:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: The tag must match the version
+        run: |
+          version="${TAG#nomadqa-v}"
+          test "$version" = "$(node -p "require('./extension/manifest.json').version")" || { echo "$TAG does not match extension/manifest.json"; exit 1; }
           echo "VERSION=$version" >> "$GITHUB_ENV"
+        env:
+          TAG: ${{ github.event.release.tag_name }}
       - run: npm test
       - name: Build the zips
         run: |
           node scripts/pack.mjs dist
-          mv dist/nomadqa-extension.zip "dist/nomadqa-extension-$VERSION.zip"
-          mv dist/nomadqa-runner.zip "dist/nomadqa-runner-$VERSION.zip"
-      - name: Notes from CHANGELOG.md
-        run: |
-          awk -v v="$VERSION" 'index($0, "## [" v "]") == 1 {on=1; next} on && /^## \[/ {exit} on && /^---$/ {exit} on {print}' CHANGELOG.md > notes.md
-          test -s notes.md || { echo "No section [$VERSION] in CHANGELOG.md"; exit 1; }
-      - name: Publish
+          cp dist/nomadqa-extension.zip "dist/nomadqa-extension-$VERSION.zip"
+          cp dist/nomadqa-runner.zip "dist/nomadqa-runner-$VERSION.zip"
+      - name: Attach them to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.zip --title "NomadQA $VERSION" --notes-file notes.md
+          TAG: ${{ github.event.release.tag_name }}
+        # both names: the versioned one for the Versions page, the plain one for a link that never changes
+        run: gh release upload "$TAG" dist/nomadqa-extension.zip dist/nomadqa-runner.zip "dist/nomadqa-extension-$VERSION.zip" "dist/nomadqa-runner-$VERSION.zip" --clobber
+      - name: Rebuild the website (Download and Versions)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main
