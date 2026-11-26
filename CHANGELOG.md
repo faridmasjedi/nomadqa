@@ -36,4 +36,5 @@ NomadQA: testing for Salesforce, as a browser extension (Chrome and Edge) and a 
 
 1. A pull request merged into `main` keeps one **draft release** up to date for the version in `extension/manifest.json` (its notes are the top section of this file). Nothing is public.
 2. To start a new release, bump the version in `extension/manifest.json` and `package.json` and put its section at the top of this file, in a pull request.
-3. When you are ready, open **Releases**, check the draft, and press **Publish release**. GitHub makes the tag `nomadqa-vX.Y.Z` at that commit; the workflow then builds `nomadqa-extension.zip` and `nomadqa-runner.zip`, attaches them, and rebuilds the website: the Download and Versions pages show the new version.
+3. When you are ready, open **Releases**, check the draft, and press **Publish release**. GitHub makes the tag `nomadqa-vX.Y.Z` at that commit.
+4. The publish run then **waits for an approval** (Actions › the run › **Review deployments** › *release* › **Approve**). Once approved it builds `nomadqa-extension.zip` and `nomadqa-runner.zip`, attaches them, and rebuilds the website: the Download and Versions pages show the new version.
