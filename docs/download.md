@@ -2,6 +2,8 @@
 
 Current version: **{{version}}** · what changed: [Versions](versions.md)
 
+{{prerelease-note}}
+
 <div class="grid dl">
 <div class="c"><h3>The extension</h3><p>For Chrome and Edge: point, record, write and run tests in your org.</p><p><a class="btn" href="download/nomadqa-extension.zip">⬇ nomadqa-extension.zip</a></p></div>
 <div class="c"><h3>The runner</h3><p>For your CI or your computer: the same tests, headless. Unzip it in your repository.</p><p><a class="btn" href="download/nomadqa-runner.zip">⬇ nomadqa-runner.zip</a></p></div>

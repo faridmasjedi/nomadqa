@@ -1,5 +1,6 @@
 // Builds the GitHub Pages site: docs/*.md → site/*.html (plain Node, no packages). `node scripts/site.mjs`
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, cpSync, rmSync, copyFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, cpSync, rmSync, copyFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { stepText } from '../extension/core/steps.js';
@@ -67,7 +68,7 @@ function render(md) {
       html += `<${ordered ? 'ol' : 'ul'}>${items.map((x) => `<li>${inline(x)}</li>`).join('')}</${ordered ? 'ol' : 'ul'}>\n`; continue;
     }
     if (/^> /.test(l)) { const buf = []; for (; i < lines.length && /^> ?/.test(lines[i]); i++) buf.push(lines[i].replace(/^> ?/, '')); html += `<blockquote>${inline(buf.join(' '))}</blockquote>\n`; continue; }
-    if (l.trim() === '') { i++; continue; }
+    if (l.trim() === '' || /^<!--.*-->\s*$/.test(l)) { i++; continue; }
     const buf = []; for (; i < lines.length && lines[i].trim() !== '' && !/^(#{1,4} |```|\||\s*([-*]|\d+\.) |> |<(div|video|figure|details))/.test(lines[i]); i++) buf.push(lines[i]);
     html += `<p>${inline(buf.join(' '))}</p>\n`;
   }
@@ -79,14 +80,34 @@ const NAV = [
   ['tests', 'Tests'], ['reports', 'Reports'], ['test-data', 'Test data'], ['agent', 'Agent'], ['runner', 'Runner'], ['ci', 'CI'], ['examples', 'Examples'], ['steps', 'Steps'], ['videos', 'Videos'], ['download', 'Download'], ['versions', 'Versions'],
 ];
 const CSS = readFileSync(join(docs, 'site.css'), 'utf8');
-const page = (file, title, body, toc) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+const TABS_JS = `(function(){function setup(t){var tl=t.querySelector(':scope > .tablist'),tabs=[].slice.call(tl.querySelectorAll(':scope > [role=tab]')),panels=[].slice.call(t.querySelectorAll(':scope > .tabpanel'));function pick(n,keep){tabs.forEach(function(b,k){b.setAttribute('aria-selected',k===n);b.tabIndex=k===n?0:-1;panels[k].hidden=k!==n});if(t.classList.contains('page-tabs')&&!keep)history.replaceState(null,'','#'+panels[n].id)}tabs.forEach(function(b,n){b.onclick=function(){pick(n)};b.onkeydown=function(e){var k=e.key==='ArrowRight'?n+1:e.key==='ArrowLeft'?n-1:-1;if(k>=0&&k<tabs.length){pick(k);tabs[k].focus()}}});t.pick=pick;t.panels=panels}document.querySelectorAll('.tabs').forEach(setup);function fromHash(){var id=decodeURIComponent(location.hash.slice(1));if(!id)return;var el=document.getElementById(id);if(!el)return;var p=el.closest('.tabpanel');while(p){var t=p.parentElement;var n=t.panels.indexOf(p);if(n>=0&&p.hidden)t.pick(n,true);p=t.closest('.tabpanel')}el.scrollIntoView()}fromHash();addEventListener('hashchange',fromHash)})();`;
+const page = (file, title, body) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title === 'Home' ? 'NomadQA — testing for Salesforce' : `${title} · NomadQA`}</title><meta name="description" content="Testing for Salesforce: a Chrome/Edge extension and a headless runner for CI. No packages.">
 <link rel="icon" href="media/icon.png"><style>${CSS}</style></head><body>
 <header><a class="brand" href="index.html"><img src="media/icon.png" alt="" width="28" height="28">NomadQA</a>
 <nav>${NAV.map(([f, t]) => `<a href="${f}.html"${f === file ? ' class="on"' : ''}>${t}</a>`).join('')}<a href="https://github.com/faridmasjedi/nomadqa">GitHub</a></nav></header>
-<main class="${file === 'index' ? 'home' : toc.length > 1 ? '' : 'solo'}">${file !== 'index' && toc.length > 1 ? `<aside><b>On this page</b>${toc.map(([id, t]) => `<a href="#${id}">${esc(t)}</a>`).join('')}</aside>` : ''}<article>${body}</article></main>
-<script>document.querySelectorAll('.tabs').forEach(function(t){var tabs=[].slice.call(t.querySelectorAll('[role=tab]')),panels=[].slice.call(t.querySelectorAll('[role=tabpanel]'));function pick(n){tabs.forEach(function(b,k){b.setAttribute('aria-selected',k===n);b.tabIndex=k===n?0:-1;panels[k].hidden=k!==n})}tabs.forEach(function(b,n){b.onclick=function(){pick(n)};b.onkeydown=function(e){var k=e.key==='ArrowRight'?n+1:e.key==='ArrowLeft'?n-1:-1;if(k>=0&&k<tabs.length){pick(k);tabs[k].focus()}}})});</script><noscript><style>.tabpanel[hidden]{display:block}</style></noscript>
+<main><article>${body}</article></main>
+<script>${TABS_JS}</script><noscript><style>.tabpanel[hidden]{display:block}</style></noscript>
 <footer>NomadQA · plain JavaScript, no packages · <a href="https://github.com/faridmasjedi/nomadqa">source</a></footer></body></html>`;
+
+/** A page's sections (## headings) become tabs; the text before the first one stays above them. */
+function pageWithTabs(md) {
+  if (/<!--\s*notabs\s*-->/.test(md)) return render(md).html;
+  const lines = md.replace(/\r/g, '').split('\n');
+  const intro = []; const sections = []; let fence = false; let cur = null;
+  for (const l of lines) {
+    if (/^```/.test(l)) fence = !fence;
+    const h = !fence && /^## (.+)$/.exec(l);
+    if (h) { cur = { title: h[1].replace(/^\d+\s*[·.]\s*/, '').replace(/`/g, ''), lines: [] }; sections.push(cur); continue; }
+    (cur ? cur.lines : intro).push(l);
+  }
+  if (sections.length < 3) return render(md).html;
+  const id = `pt${++tabCount}`;
+  const ids = sections.map((x) => slug(x.title));
+  return render(intro.join('\n')).html +
+    `<div class="tabs page-tabs"><div class="tablist" role="tablist">${sections.map((x, n) => `<button role="tab" id="${id}-${n}" aria-controls="${ids[n]}" aria-selected="${n === 0}" tabindex="${n === 0 ? 0 : -1}">${esc(x.title)}</button>`).join('')}</div>` +
+    sections.map((x, n) => `<div class="tabpanel" role="tabpanel" id="${ids[n]}" aria-labelledby="${id}-${n}"${n ? ' hidden' : ''}>${render(x.lines.join('\n')).html}</div>`).join('') + '</div>';
+}
 
 // ---- downloads: the zips are built with the site, so the links always match this version
 const version = JSON.parse(readFileSync(join(root, 'extension/manifest.json'), 'utf8')).version;
@@ -97,6 +118,36 @@ for (const [k, f] of [['ext', 'nomadqa-extension'], ['runner', 'nomadqa-runner']
   sha[k] = createHash('sha256').update(readFileSync(join(out, 'download', `${f}.zip`))).digest('hex');
   copyFileSync(join(out, 'download', `${f}.zip`), join(out, 'download', `${f}-${version}.zip`));
 }
+
+// ---- every version: its zips are built from git (a commit or a tag), so each version can be downloaded
+const versions = JSON.parse(readFileSync(join(docs, 'versions.json'), 'utf8'));
+const released = versions.some((v) => v.version === version && /^nomadqa-v/.test(v.ref));
+const gitOut = (args, opts = {}) => execFileSync('git', args, { cwd: root, stdio: ['ignore', 'pipe', 'ignore'], ...opts });
+function versionZips(v) {
+  const dir = join(out, 'download', 'versions'); mkdirSync(dir, { recursive: true });
+  const made = {};
+  try { gitOut(['rev-parse', '--verify', `${v.ref}^{commit}`]); } catch { console.warn(`version ${v.version}: ${v.ref} is not in this clone (checkout with fetch-depth: 0)`); return made; }
+  const tmp = mkdtempSync(join(tmpdir(), 'nomadqa-v-'));
+  const untar = (paths, into) => { mkdirSync(into, { recursive: true }); const tar = gitOut(['archive', '--format=tar', v.ref, ...paths], { maxBuffer: 1 << 28 }); execFileSync('tar', ['-x', '-C', into], { input: tar }); };
+  untar(['extension'], tmp);
+  execFileSync('zip', ['-qr', join(dir, `nomadqa-extension-${v.version}.zip`), '.', '-x', '.*'], { cwd: join(tmp, 'extension') });
+  made.ext = `download/versions/nomadqa-extension-${v.version}.zip`;
+  if (v.runner) {
+    untar(['runner/run.mjs', 'extension/core'], join(tmp, 'nomadqa'));
+    execFileSync('zip', ['-qr', join(dir, `nomadqa-runner-${v.version}.zip`), 'nomadqa'], { cwd: tmp });
+    made.runner = `download/versions/nomadqa-runner-${v.version}.zip`;
+  }
+  rmSync(tmp, { recursive: true, force: true });
+  return made;
+}
+const versionRows = [`<tr><td><b>${released ? version : `${version} → 1.0.0`}</b><br><em>${released ? 'latest' : 'preview, in review'}</em></td><td>now</td><td><a href="download/nomadqa-extension.zip">extension</a> · <a href="download/nomadqa-runner.zip">runner</a></td></tr>`];
+for (const v of versions) {
+  if (v.version === version && released) continue;
+  const z = versionZips(v);
+  versionRows.push(`<tr><td><b>${v.version}</b><br><em>${v.note ?? 'pre-release'}</em></td><td>${v.date ?? ''}</td><td>${z.ext ? `<a href="${z.ext}">extension</a>` : '—'}${z.runner ? ` · <a href="${z.runner}">runner</a>` : ''}</td></tr>`);
+}
+const versionsTable = `<div class="table"><table><thead><tr><th>Version</th><th>Date</th><th>Download</th></tr></thead><tbody>${versionRows.join('')}</tbody></table></div>`;
+const prereleaseNote = released ? '' : `> **Pre-release build.** The first release, **1.0.0**, is published after review. This is the build that becomes it.`;
 
 // ---- examples: each file as the steps a person reads, with the file to download
 mkdirSync(join(out, 'examples'), { recursive: true });
@@ -116,15 +167,18 @@ const exampleHtml = (name) => {
 const prepare = (text) => text
   .replaceAll('docs/media/', 'media/').replaceAll('](docs/', '](')
   .replaceAll('{{version}}', version).replaceAll('{{sha:ext}}', sha.ext).replaceAll('{{sha:runner}}', sha.runner)
+  .replaceAll('{{prerelease-note}}', prereleaseNote)
   .replace(/^\{\{example:([\w-]+)\}\}$/gm, (_, n) => exampleHtml(n));
 
 const sources = readdirSync(docs).filter((x) => x.endsWith('.md')).map((f) => [f.replace(/\.md$/, ''), join(docs, f)]);
 sources.push(['runner', join(root, 'RUN-ANYWHERE.md')]); // one source for the guide, on GitHub and on the site
 sources.push(['versions', join(root, 'CHANGELOG.md')]);
 for (const [name, file] of sources) {
-  const { html, toc } = render(prepare(readFileSync(file, 'utf8')));
+  let md = prepare(readFileSync(file, 'utf8'));
+  if (name === 'versions') md = md.replace(/^(What changed[^\n]*\n)/m, `$1\n${versionsTable}\n`);
+  const html = name === 'index' ? render(md).html : pageWithTabs(md);
   const title = NAV.find(([n]) => n === name)?.[1] ?? name;
-  writeFileSync(join(out, `${name}.html`), page(name, title, html, toc));
+  writeFileSync(join(out, `${name}.html`), page(name, title, html));
 }
 cpSync(join(docs, 'media'), join(out, 'media'), { recursive: true });
 writeFileSync(join(out, '.nojekyll'), '');
