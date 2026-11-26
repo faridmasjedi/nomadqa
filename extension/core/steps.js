@@ -4,6 +4,7 @@
 // step = { action, ... } — see ACTIONS. Values may use {{key}} (a record made by a data step: its Id) or
 // {{key.Field}} (one of its values).
 
+import { sessionFromAuthUrl } from './authurl.js';
 import { makeFaker } from './fake.js';
 import { generate, querySoqls } from './plan.js';
 import { createRecords, deleteBatch } from './create.js';
@@ -319,10 +320,22 @@ export function stepper(test, { driver, sf, describes = {}, logins = {} }) {
     }
     if (s.action === 'login') {
       const l = logins[s.login];
-      if (!l?.username)
+      if (!l?.username && !l?.authUrl)
         throw new Error(`No login “${s.login}”: add it in Settings › Logins (or --logins for the runner).`);
       if (who.as) await backToMe();
       if (driver.keepSession) await driver.keepSession();
+      if (l.authUrl) {
+        // This user's SFDX auth URL: no password, no login page. The token is exchanged and the browser is sent in.
+        const a = await sessionFromAuthUrl(l.authUrl, { retUrl: '/lightning/page/home' });
+        who.as = 'login';
+        await (driver.load ?? driver.open)(a.frontdoor);
+        if (driver.settle) await driver.settle();
+        const here = driver.url ? await driver.url() : '';
+        if (loggedOut(here) && !/lightning/.test(here))
+          throw new Error(`The auth URL of “${s.login}” did not log in (${here.slice(0, 80)}): it may be revoked.`);
+        who.userId = a.userId;
+        return { ok: true, message: `Logged in as “${s.login}” with its SFDX auth URL` };
+      }
       const url = l.url || 'https://login.salesforce.com';
       await (driver.load ?? driver.open)(url.startsWith('http') ? url : `https://${url}`);
       who.as = 'login';

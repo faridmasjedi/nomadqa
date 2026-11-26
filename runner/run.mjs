@@ -14,6 +14,9 @@
 //
 // "Log in" steps take their username and password from --logins (or NOMADQA_LOGINS, the same JSON):
 //   { "sales-user": { "url": "https://test.salesforce.com", "username": "…", "password": "…" } }
+// or an SFDX auth URL instead of a password: { "sales-user": { "authUrl": "force://…" } }, or one environment variable
+// per user: NOMADQA_AUTH_URL_SALES_USER=force://… (the login "sales-user"). A test that logs in runs in a browser
+// context of its own, so the next test is not that user.
 //
 // Login: --org <alias> asks the Salesforce CLI for a one-time login link (sf org open --url-only); or, in CI without
 // the CLI, --auth-url / SF_AUTH_URL: the org's SFDX auth URL (sf org display --verbose; keep it in a secret);
@@ -35,6 +38,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Salesforce } from '../extension/core/salesforce.js';
+import { sessionFromAuthUrl } from '../extension/core/authurl.js';
 import { runTest, stepText, junit, groupJunit, testsFromFile } from '../extension/core/steps.js';
 import { htmlReport, markdownSummary, failureLine } from '../extension/core/report.js';
 
@@ -356,22 +360,11 @@ function testFiles(paths) {
 
 /** A one-time login link from an SFDX auth URL (force://clientId:secret:refreshToken@instance): no CLI needed. */
 async function fromAuthUrl(authUrl) {
-  const m = /^force:\/\/([^:]+):([^:]*):(.+)@([^@]+)$/.exec(String(authUrl).trim());
-  if (!m) throw new Error('The auth URL should look like force://…@your-domain.my.salesforce.com.');
-  const [, clientId, secret, refresh, instance] = m;
-  const base = instance.startsWith('http') ? instance : `https://${instance}`;
-  const body = new URLSearchParams({
-    grant_type: 'refresh_token',
-    client_id: clientId,
-    refresh_token: refresh,
-    ...(secret ? { client_secret: secret } : {}),
-  });
-  const res = await fetch(`${base}/services/oauth2/token`, { method: 'POST', body });
-  const j = await res.json().catch(() => ({}));
-  if (!res.ok || !j.access_token)
-    throw new Error(`Salesforce did not accept the auth URL: ${j.error_description ?? j.error ?? res.status}`);
-  return `${j.instance_url}/secur/frontdoor.jsp?sid=${encodeURIComponent(j.access_token)}`;
+  return (await sessionFromAuthUrl(authUrl)).frontdoor;
 }
+
+/** Does the test (or a group in it) log in as someone? Such a test runs in a browser context of its own. */
+const logsIn = (steps) => (steps ?? []).some((s) => s.action === 'login' || s.action === 'loginas' || logsIn(s.steps));
 
 const gh = (s) =>
   String(s ?? '')
@@ -415,6 +408,11 @@ async function main() {
     .filter((t) => !opts.group || t.group.toLowerCase() === opts.group.toLowerCase());
   if (!tests.length) throw new Error(opts.group ? `No test in the group “${opts.group}”.` : 'No tests found.');
   const logins = JSON.parse(opts.logins ? readFileSync(opts.logins, 'utf8') : process.env.NOMADQA_LOGINS || '{}');
+  // One secret per user: NOMADQA_AUTH_URL_SALES_REP=force://… is the login "sales-rep" (a Log in step names it)
+  for (const [key, value] of Object.entries(process.env)) {
+    const m = /^NOMADQA_AUTH_URL_(.+)$/.exec(key);
+    if (m && value) logins[m[1].toLowerCase().replace(/_/g, '-')] = { authUrl: value };
+  }
   const groups = new Map();
   mkdirSync(opts.out, { recursive: true });
   const browser = await launch(opts);
@@ -430,8 +428,10 @@ async function main() {
       const lines = [`\n${test.name ?? basename(file)}`];
       const say = (line) => (parallel > 1 ? lines.push(line) : console.log(line));
       if (parallel === 1) console.log(lines.shift());
+      // Another user must not stay logged in for the next test: those tests get a context of their own
+      const own = logsIn(test.steps) ? await browser.isolated() : null;
       const run = await runTest(test, {
-        driver,
+        driver: own?.driver ?? driver,
         sf,
         logins,
         onStep: (i, r) => {
@@ -439,6 +439,7 @@ async function main() {
           say(`  ${mark} ${i + 1}. ${stepText(test.steps[i])}${r.ok === false ? `\n      ${r.message}` : ''}`);
         },
       }).catch((e) => ({ ok: false, ms: 0, results: [{ ok: false, message: e.message, ms: 0 }] }));
+      await own?.close();
       const stem = basename(file).replace(/\.json$/, '');
       writeFileSync(join(opts.out, `${stem}.junit.xml`), junit(test, run));
       run.results.forEach((r, i) => {

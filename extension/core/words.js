@@ -243,7 +243,7 @@
         {
           options: (s, ctx = {}) => [
             ['', ctx.logins?.length ? 'Choose a login…' : 'None yet: add one in Settings'],
-            ...(ctx.logins ?? []).filter((l) => l.name).map((l) => [l.name, `${l.name} · ${l.username}`]),
+            ...(ctx.logins ?? []).filter((l) => l.name).map((l) => [l.name, `${l.name} · ${l.username || 'SFDX auth URL'}`]),
           ],
         },
       ],
