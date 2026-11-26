@@ -1,0 +1,16 @@
+[
+  {
+    "version": "0.2.0",
+    "ref": "2580185",
+    "runner": true,
+    "date": "2026-11-25",
+    "note": "pre-release"
+  },
+  {
+    "version": "0.1.0",
+    "ref": "d5c8161",
+    "runner": false,
+    "date": "2026-11-20",
+    "note": "pre-release"
+  }
+]

@@ -4,8 +4,7 @@
 header{position:sticky;top:0;z-index:5;display:flex;gap:24px;align-items:center;justify-content:space-between;padding:10px 28px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:wrap}
 .brand{display:flex;gap:10px;align-items:center;font-weight:700;color:var(--ink);text-decoration:none;font-size:18px}.brand img{border-radius:7px}
 nav{display:flex;gap:4px;flex-wrap:wrap}nav a{color:var(--mut);text-decoration:none;padding:6px 9px;border-radius:8px;font-size:14px;white-space:nowrap}nav a:hover{background:var(--code)}nav a.on{color:var(--pri);background:var(--code);font-weight:600}
-main{display:grid;grid-template-columns:210px minmax(0,1fr);gap:36px;max-width:1120px;margin:0 auto;padding:34px 24px 70px}main.home,main.solo{display:block;max-width:980px}
-main.solo article{max-width:860px;margin:0 auto}
+main{max-width:980px;margin:0 auto;padding:34px 24px 70px}
 aside{position:sticky;top:72px;align-self:start;display:flex;flex-direction:column;gap:2px;font-size:14px}aside b{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin-bottom:6px}aside a{color:var(--mut);text-decoration:none;padding:3px 0}aside a:hover{color:var(--pri)}
 article{min-width:0}article h1{font-size:2.3rem;line-height:1.15;margin:.2em 0 .4em}article h2{margin:2.1em 0 .5em;padding-top:.4em;border-top:1px solid var(--line);font-size:1.55rem}article h3{margin:1.6em 0 .3em;font-size:1.15rem}
 a{color:var(--pri)}img,video{max-width:100%;border-radius:12px;border:1px solid var(--line);box-shadow:0 8px 30px rgba(40,20,120,.12);display:block;margin:14px 0}
@@ -40,3 +39,11 @@ details.ex ol ol{margin:4px 0}
 details.ex details{margin:6px 0 10px}
 .grid.dl .c p{margin:.5em 0 1em}
 .grid.dl .btn{width:100%;text-align:center;box-sizing:border-box}
+
+/* the page's sections as tabs */
+.page-tabs{border:0;background:transparent;overflow:visible;margin-top:22px}
+.page-tabs > .tablist{background:transparent;padding:8px 0 12px;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap}
+.page-tabs > .tablist button{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:9px 16px;white-space:nowrap;box-shadow:none}
+.page-tabs > .tablist button[aria-selected=true]{background:var(--pri);border-color:var(--pri);color:#fff;box-shadow:none}
+.page-tabs > .tabpanel{padding:18px 0 0}
+.page-tabs > .tabpanel > :first-child{margin-top:0}
