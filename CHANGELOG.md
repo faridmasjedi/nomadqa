@@ -1,15 +1,18 @@
 # Versions
 
+<!-- notabs -->
+
 What changed in each version of NomadQA. The newest is on top. The current extension version is **{{version}}**.
 
-## [1.0.0] · 2026-11-26
+## [Unreleased] · becomes 1.0.0 after review
 
-The first release. Test data, testing (Inspector, Recorder, Tests, Runs, Agent), the headless runner — and, new in this version, logging in as each of many users, a website and downloads.
+The first release, being reviewed. Test data, testing (Inspector, Recorder, Tests, Runs, Agent), the headless runner — and, new in this version, logging in as each of many users, a website and downloads.
 
 **New: many users**
 - **Log in with an SFDX auth URL**: a login in Settings › Logins can hold a user's SFDX auth URL instead of a password. The test goes in without a login page. In the runner: `NOMADQA_LOGINS`, `--logins`, or one environment variable per user, `NOMADQA_AUTH_URL_SALES_REP` = the login `sales-rep`.
 - **A browser context of its own for every test that logs in** (`Log in`, `Log in as a user`), in the runner: the next test is not that user, and such tests run side by side with `--parallel`.
-- A guide for **30 users, a group of tests for each**: secrets in GitHub, AWS, Google Cloud or Vault, and one job per group.
+- **The run itself can be a user** with a username and password: `SF_USERNAME`, `SF_PASSWORD`, `SF_LOGIN_PAGE` (or `--as <login>`), next to `SF_AUTH_URL`. The `data` and `query` steps then use that user's own permissions: no administrator is needed.
+- A guide for **many automation users, a group of tests for each**: create the tests as the user, store the group, one CI job per user with its secrets (GitHub Environments, AWS, Google Cloud, Azure Key Vault, Vault, GitLab, Jenkins, Azure DevOps…), and how a QA debugs a failed run from its report.
 
 **New: website, downloads, examples**
 - **Website** (GitHub Pages) with 15 pages: Home, Start, Inspector, Recorder, Tests, Reports, Test data, Agent, Runner, CI, Examples, Steps, Videos, Download, Versions — with tabs where there are alternatives.
@@ -18,7 +21,7 @@ The first release. Test data, testing (Inspector, Recorder, Tests, Runs, Agent),
 - **12 examples**, each shown as readable steps with its file to download.
 - **CI, secrets and reports**: GitHub Actions with repository secrets, Google Cloud, AWS, GitLab, Jenkins, Azure DevOps, Bitbucket and CircleCI; how to keep reports when a test fails.
 
-**Everything built before** is listed below, by day.
+**Everything built before** is listed below, by day. It is all part of 1.0.0.
 
 ## [0.2.0] · 2026-11-20 → 2026-11-25 · pre-release
 
