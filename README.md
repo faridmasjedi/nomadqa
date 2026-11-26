@@ -1,5 +1,7 @@
 <h1 align="center">NomadQA</h1>
 
+<p align="center"><a href="https://faridmasjedi.github.io/nomadqa/"><b>📖 Website and documentation: faridmasjedi.github.io/nomadqa</b></a></p>
+
 <p align="center">Testing for Salesforce, in plain words.<br>A Chrome/Edge extension to point, record and run tests — and a headless runner for CI.<br><b>No packages. No build step.</b></p>
 
 <p align="center"><img src="docs/media/gif/run.gif" width="720" alt="NomadQA runs a test in a tab of your org"></p>
@@ -30,10 +32,10 @@ Steps name things the way a person sees them (buttons by what they say, fields b
 ## Use it in your repository
 
 1. Download **`nomadqa-runner.zip`**, unzip it in your repository (it makes a `nomadqa` folder) and commit it.
-2. Put your tests in `tests/nomadqa/` (Tests › **Download** saves them) and an SFDX auth URL in a secret named `SF_AUTH_URL`.
+2. Put your tests in `tests/nomadqa/` (Tests › **Download** saves them) and the automation user's SFDX auth URL — or username and password — in secrets.
 3. Run `node nomadqa/runner/run.mjs tests/nomadqa --out nomadqa-reports` in your pipeline and upload the folder.
 
-A ready GitHub Actions file, GitLab, Jenkins, AWS and Google Cloud recipes, 30 users with their own logins, and keeping the reports: **[CI, secrets and reports](docs/ci.md)**.
+How a QA creates the tests as an automation user, a ready GitHub Actions file with one job per user, secrets in GitHub, AWS and Google Cloud, other CI, and keeping and debugging the reports: **[CI, secrets and reports](docs/ci.md)**.
 
 ## Run it without anyone watching
 
