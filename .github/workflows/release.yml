@@ -1,0 +1,35 @@
+# Publishes a GitHub Release when a version tag is pushed: nomadqa-v0.3.0 → "NomadQA 0.3.0" with both zips and the
+# notes from that version's section of CHANGELOG.md.
+name: release
+on:
+  push:
+    tags: ['nomadqa-v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the tag matches the version
+        run: |
+          version="${GITHUB_REF_NAME#nomadqa-v}"
+          test "$version" = "$(node -p "require('./extension/manifest.json').version")" || { echo "Tag $GITHUB_REF_NAME does not match extension/manifest.json"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - run: npm test
+      - name: Build the zips
+        run: |
+          node scripts/pack.mjs dist
+          mv dist/nomadqa-extension.zip "dist/nomadqa-extension-$VERSION.zip"
+          mv dist/nomadqa-runner.zip "dist/nomadqa-runner-$VERSION.zip"
+      - name: Notes from CHANGELOG.md
+        run: |
+          awk -v v="$VERSION" 'index($0, "## [" v "]") == 1 {on=1; next} on && /^## \[/ {exit} on && /^---$/ {exit} on {print}' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "No section [$VERSION] in CHANGELOG.md"; exit 1; }
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip --title "NomadQA $VERSION" --notes-file notes.md
