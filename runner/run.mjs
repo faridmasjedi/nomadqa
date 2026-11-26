@@ -14,6 +14,7 @@
 //
 // "Log in" steps take their username and password from --logins (or NOMADQA_LOGINS, the same JSON):
 //   { "sales-user": { "url": "https://test.salesforce.com", "username": "…", "password": "…" } }
+// A .env file (or --env-file) in the folder you run from gives these variables locally; keep it out of git.
 // The run's own user: SF_AUTH_URL (the user's SFDX auth URL), or SF_USERNAME + SF_PASSWORD (+ SF_LOGIN_PAGE), or
 // --as <login> makes the run itself that user: the login's SFDX auth URL, or its username and password. Then the
 // data and query steps run as that user too (no separate admin).
@@ -58,6 +59,7 @@ function args(argv) {
     else if (a === '--out') out.out = argv[++i];
     else if (a === '--logins') out.logins = argv[++i];
     else if (a === '--as') out.as = argv[++i];
+    else if (a === '--env-file') out.envFile = argv[++i];
     else if (a === '--chrome') out.chrome = argv[++i];
     else if (a === '--parallel') out.parallel = Math.max(1, parseInt(argv[++i], 10) || 1);
     else if (a === '--headed') out.headed = true;
@@ -397,6 +399,21 @@ async function loginWithPassword(browser, l) {
   return new URL(now).host.replace(/\.lightning\.force\.com$/, '.my.salesforce.com').replace(/\.my\.salesforce-setup\.com$/, '.my.salesforce.com');
 }
 
+/** KEY=value lines of a .env file become environment variables; a variable already set (the CI's own) wins. */
+function loadEnvFile(path) {
+  let n = 0;
+  for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
+    const m = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
+    if (!m || line.trim().startsWith('#')) continue;
+    const value = m[2].replace(/^(["'])(.*)\1$/, '$2');
+    if (process.env[m[1]] === undefined) {
+      process.env[m[1]] = value;
+      n++;
+    }
+  }
+  return n;
+}
+
 const gh = (s) =>
   String(s ?? '')
     .replace(/%/g, '%25')
@@ -405,10 +422,17 @@ const gh = (s) =>
 
 async function main() {
   const opts = args(process.argv.slice(2));
+  // Locally: a .env file in the folder you run from (or --env-file <path>) holds the logins; in CI the secrets are
+  // already environment variables and win. Keep .env out of git.
+  const envFile = opts.envFile ?? (existsSync('.env') ? '.env' : '');
+  if (envFile) {
+    if (!existsSync(envFile)) throw new Error(`No env file “${envFile}”.`);
+    console.log(`Using ${envFile} (${loadEnvFile(envFile)} variable(s) from it)`);
+  }
   opts.group = opts.group || process.env.NOMADQA_GROUP || '';
   if (opts.help || !opts.files.length) {
     console.log(
-      'Usage: node nomadqa/runner/run.mjs <test.nomadqa.json | group.json | report.junit.xml | folder…> (--as <login> | --org <alias> | --auth-url <sfdx auth url>) [--group <name>] [--logins logins.json] [--parallel N] [--headed] [--out <folder>]'
+      'Usage: node nomadqa/runner/run.mjs <test.nomadqa.json | group.json | report.junit.xml | folder…> (--as <login> | --org <alias> | --auth-url <sfdx auth url>) [--group <name>] [--logins logins.json] [--env-file .env] [--parallel N] [--headed] [--out <folder>]'
     );
     process.exit(opts.help ? 0 : 2);
   }

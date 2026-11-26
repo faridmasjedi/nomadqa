@@ -1,3 +1,6 @@
 nomadqa-extension.zip
 site/
 nomadqa-runner.zip
+.env
+.env.*
+!.env.example
