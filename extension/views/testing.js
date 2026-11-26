@@ -2589,6 +2589,8 @@ export function testingViews(ctx) {
   }
 
   // Logins for "Log in" steps: kept in this browser only; a test names the login, it never holds the password
+  const OWN = '__own';
+  const ownOpen = new Set(); // logins whose own-domain box is open
   function loginsCard() {
     const pages = [
       ['https://login.salesforce.com', 'login.salesforce.com (production, Developer Edition)'],
@@ -2666,11 +2668,29 @@ export function testingViews(ctx) {
                       'td',
                       {},
                       select(
-                        l.url,
-                        pages.some(([v]) => v === l.url) ? pages : [[l.url, l.url], ...pages],
-                        (v) => ((l.url = v), render()),
+                        ownOpen.has(l) ? OWN : l.url,
+                        [
+                          ...(pages.some(([v]) => v === l.url) ? pages : [[l.url, l.url], ...pages]),
+                          [OWN, '+ Add your domain address'],
+                        ],
+                        (v) => (v === OWN ? ownOpen.add(l) : (ownOpen.delete(l), (l.url = v)), render()),
                         { 'aria-label': 'Login page' }
-                      )
+                      ),
+                      ownOpen.has(l)
+                        ? h('input', {
+                            placeholder: 'https://yourcompany.my.salesforce.com',
+                            autocomplete: 'off',
+                            style: 'margin-top: 6px; min-width: 260px',
+                            'aria-label': 'Your domain address',
+                            onchange: (e) => {
+                              const v = e.target.value.trim();
+                              if (!v) return;
+                              l.url = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+                              ownOpen.delete(l);
+                              render();
+                            },
+                          })
+                        : null
                     ),
                     h('td', {}, field(l, 'username', { placeholder: 'name@company.com', 'aria-label': 'Username' })),
                     h(
