@@ -480,10 +480,13 @@ async function main() {
       ? { url: process.env.SF_LOGIN_PAGE || 'https://login.salesforce.com', username: process.env.SF_USERNAME, password: process.env.SF_PASSWORD ?? '' }
       : null;
   const passwordLogin = asLogin && !asLogin.authUrl && asLogin.username ? asLogin : byEnv;
-  const authUrl = opts.authUrl ?? asLogin?.authUrl ?? process.env.SF_AUTH_URL ?? process.env.NOMADQA_AUTH_URL;
+  // What is given on the command line wins over what the environment (or a .env file) holds
+  const explicit = Boolean(opts.loginUrl || opts.authUrl || opts.org || asLogin);
+  const fromEnv = (v) => (explicit ? undefined : v);
+  const authUrl = opts.authUrl ?? asLogin?.authUrl ?? fromEnv(process.env.SF_AUTH_URL ?? process.env.NOMADQA_AUTH_URL);
   const loginUrl =
     opts.loginUrl ??
-    process.env.NOMADQA_LOGIN_URL ??
+    fromEnv(process.env.NOMADQA_LOGIN_URL) ??
     (authUrl
       ? await fromAuthUrl(authUrl)
       : opts.org
