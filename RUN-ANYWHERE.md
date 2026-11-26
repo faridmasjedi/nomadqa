@@ -28,9 +28,12 @@ Choose one:
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Your computer, with the Salesforce CLI | `--org my-sandbox` (a CLI alias)                                                                                                                      |
 | CI, without the CLI                    | `SF_AUTH_URL`: the org's SFDX auth URL, kept in your CI's secrets. Get it with `sf org display --verbose --json -o my-sandbox` (`result.sfdxAuthUrl`) |
+| CI, with a username and password       | `SF_USERNAME`, `SF_PASSWORD` and `SF_LOGIN_PAGE` (`https://test.salesforce.com` for a sandbox or scratch org)                                         |
 | Anywhere, for one run                  | `--login-url` (or `NOMADQA_LOGIN_URL`): a one-time login link, from `sf org open --url-only`                                                          |
 
-Use a sandbox or a test org. The session stays in the browser and in memory. Nothing is saved but the reports.
+The run is that user: the tests, and their `data` and `query` steps, use that user's own permissions. Use a sandbox or a test org. The session stays in the browser and in memory. Nothing is saved but the reports.
+
+For several automation users, one job each, see **[CI, secrets and reports](docs/ci.md)**.
 
 Tests with **Log in** steps (as another user) need a login for each user. Give them in `--logins logins.json` (or the secret `NOMADQA_LOGINS`, the same JSON), with a password **or an SFDX auth URL** per user:
 
