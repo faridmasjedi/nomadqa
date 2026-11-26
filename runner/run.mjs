@@ -490,8 +490,6 @@ async function main() {
       ? JSON.parse(execFileSync('sf', ['org', 'open', '--url-only', '--json', '-o', opts.org], { encoding: 'utf8' }))
           .result.url
       : undefined);
-  if (!loginUrl && !passwordLogin)
-    throw new Error('Give --as <login>, --org <alias> (Salesforce CLI), --auth-url (SF_AUTH_URL) or --login-url.');
   let host = loginUrl ? new URL(loginUrl).host : '';
   // A test, a group of tests, or a JUnit report NomadQA wrote: every test in it
   const tests = testFiles(opts.files)
@@ -507,13 +505,22 @@ async function main() {
     })
     .filter((t) => !opts.group || t.group.toLowerCase() === opts.group.toLowerCase());
   if (!tests.length) throw new Error(opts.group ? `No test in the group “${opts.group}”.` : 'No tests found.');
+  // Every test starts with a Log in step and no user is given for the run: each test logs in itself (no session needed
+  // before it), with a login from .env, --logins or NOMADQA_LOGINS
+  const lazy = !loginUrl && !passwordLogin && tests.every((t) => t.test.steps?.[0]?.action === 'login');
+  if (!loginUrl && !passwordLogin && !lazy)
+    throw new Error(
+      'Give --as <login>, --org <alias> (Salesforce CLI), --auth-url (SF_AUTH_URL), SF_USERNAME + SF_PASSWORD — or start every test with a Log in step.'
+    );
   const groups = new Map();
   mkdirSync(opts.out, { recursive: true });
   const browser = await launch(opts);
   let failedTests = 0;
   try {
     let sid;
-    if (passwordLogin) {
+    if (lazy) {
+      console.log('No user for the run: each test logs in with the login its first step names.');
+    } else if (passwordLogin) {
       console.log(`Logging in as ${asName ?? passwordLogin.username}…`);
       host = await loginWithPassword(browser, passwordLogin, { codeFile: opts.codeFile, out: opts.out });
       sid = await browser.session(host);
@@ -522,18 +529,31 @@ async function main() {
       await browser.login(loginUrl);
       sid = await browser.session(host);
     }
-    if (!sid) throw new Error('Logged in, but no session was found for the API.');
-    const sf = new Salesforce(host, sid);
+    if (!lazy && !sid) throw new Error('Logged in, but no session was found for the API.');
+    const sf = lazy ? null : new Salesforce(host, sid);
     const parallel = Math.min(opts.parallel ?? 1, tests.length);
     const runOne = async ({ file, test, group }, driver) => {
       const lines = [`\n${test.name ?? basename(file)}`];
       const say = (line) => (parallel > 1 ? lines.push(line) : console.log(line));
       if (parallel === 1) console.log(lines.shift());
       // Another user must not stay logged in for the next test: those tests get a context of their own
-      const own = logsIn(test.steps) ? await browser.isolated() : null;
+      const own = lazy || logsIn(test.steps) ? await browser.isolated() : null;
       const run = await runTest(test, {
         driver: own?.driver ?? driver,
         sf,
+        // after the test's own login: the org of its tab, with the session that login made
+        connect: lazy
+          ? async () => {
+              const here = new URL(await own.driver.url()).host;
+              const apiHost = here
+                .replace(/\.lightning\.force\.com$/, '.my.salesforce.com')
+                .replace(/\.my\.salesforce-setup\.com$/, '.my.salesforce.com');
+              const sessionId = await own.session(apiHost);
+              if (!sessionId) throw new Error('Logged in, but no session was found for the API.');
+              host = apiHost;
+              return new Salesforce(apiHost, sessionId);
+            }
+          : undefined,
         logins,
         onStep: (i, r) => {
           const mark = r.ok ? '✓' : r.ok === null ? '·' : '✕';
