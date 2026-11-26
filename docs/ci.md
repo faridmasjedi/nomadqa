@@ -124,7 +124,7 @@ sf org login web --alias sales-rep --instance-url https://test.salesforce.com
 sf org display --verbose --json --target-org sales-rep      # result.sfdxAuthUrl
 ```
 
-**A login page that asks to verify the user cannot be passed.** Salesforce may send an email code or ask for multi-factor authentication when a user logs in from a machine it does not know, and a CI machine is always new. A username and password therefore works only where Salesforce does not ask: the CI's IP range is trusted (Setup › Network Access), or the test users are exempt from verification as your security team allows. An **SFDX auth URL does not ask**, so prefer it. (NomadQA handles Salesforce's two-step login page — the username, then the password — and stops with a clear message at a verification page.)
+**A login page that asks to verify the user cannot be passed.** Salesforce may send an email code or ask for multi-factor authentication when a user logs in from a machine it does not know, and a CI machine is always new. A username and password therefore works only where Salesforce does not ask: the CI's IP range is trusted (Setup › Network Access), or the test users are exempt from verification as your security team allows. An **SFDX auth URL does not ask**, so prefer it. A run never waits for a code by itself: it stops at once with a clear message and a screenshot of the page (`verification.jpg` in the reports). For a one-off test on your own computer you can give the code: `--code-file code.txt` makes the run wait up to 15 minutes for the emailed code to appear in that file. (NomadQA handles Salesforce's two-step login page — the username, then the password — and stops with a clear message at a verification page.)
 
 An auth URL (a refresh token) and a password both **let anyone act as that user**. Keep them in a secret store; never in the repository, a log or a test file. Salesforce allows only a few refresh tokens per user and connected app (by default 5; the oldest is revoked), so log each user in once and keep the URL.
 
@@ -532,7 +532,7 @@ A test that logs in runs in a browser context of its own, so the next test is no
 | exit code `2`, `Give --as … --auth-url …` | `SF_AUTH_URL` (or `SF_USERNAME` and `SF_PASSWORD`) is empty: a secret was not passed (a fork, a missing `env:` line, or the wrong environment) |
 | `The auth URL should look like force://…` | the secret has extra quotes or a line break; paste only the `force://…` value |
 | `Salesforce did not accept the auth URL` | the refresh token was revoked or the user changed: log in again with `sf org login web`, read the new URL and update the secret; check the login IP restrictions |
-| `Still not in Salesforce … /_ui/identity/verification/…` | Salesforce asks to verify the user (an email code) because the machine is new: trust the CI's IP range in Setup › Network Access, or use an SFDX auth URL, which does not ask |
+| `Salesforce asks to verify the user (a code sent by email)` | the machine is new to Salesforce: trust the CI's IP range in Setup › Network Access, or use an SFDX auth URL, which does not ask. `verification.jpg` in the reports shows the page |
 | `Still not in Salesforce … a wrong username or password` | check the password and `SF_LOGIN_PAGE` (sandbox: `https://test.salesforce.com`; production: `https://login.salesforce.com`) |
 | login works but data steps fail | that user lacks permission to create or read the records: fix the user's permission set, or use records that exist in the sandbox |
 | tests are slow | lower `--parallel`; use a nearer runner |
