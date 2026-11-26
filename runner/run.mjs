@@ -60,6 +60,7 @@ function args(argv) {
     else if (a === '--logins') out.logins = argv[++i];
     else if (a === '--as') out.as = argv[++i];
     else if (a === '--env-file') out.envFile = argv[++i];
+    else if (a === '--code-file') out.codeFile = argv[++i];
     else if (a === '--chrome') out.chrome = argv[++i];
     else if (a === '--parallel') out.parallel = Math.max(1, parseInt(argv[++i], 10) || 1);
     else if (a === '--headed') out.headed = true;
@@ -309,6 +310,7 @@ async function tab(cdp, browserContextId) {
       await loaded;
     },
     url: () => inPage('location.href'),
+    evaluate: (expression) => inPage(expression),
     // After the login form is sent: the redirects end on Lightning (or stay on a login or verification page)
     async settle(timeout = 90000) {
       const end = Date.now() + timeout;
@@ -373,7 +375,7 @@ async function fromAuthUrl(authUrl) {
 const logsIn = (steps) => (steps ?? []).some((s) => s.action === 'login' || s.action === 'loginas' || logsIn(s.steps));
 
 /** The run's own login with a username and a password: the login page, then Lightning. → the org's host for the API. */
-async function loginWithPassword(browser, l) {
+async function loginWithPassword(browser, l, { codeFile, out } = {}) {
   const d = browser.driver;
   const url = l.url || 'https://login.salesforce.com';
   await d.load(url.startsWith('http') ? url : `https://${url}`);
@@ -391,7 +393,31 @@ async function loginWithPassword(browser, l) {
   }
   if (typed && typed.ok === false) throw new Error(typed.message);
   await d.settle();
-  const now = await d.url();
+  let now = await d.url();
+  // Salesforce asks to verify the user (a code sent by email): a person can put the code in a file; the run waits for it
+  if (/\/_ui\/identity\/verification\//.test(now)) {
+    if (out) await d.shot().then((s) => writeFileSync(join(out, 'verification.jpg'), Buffer.from(s.split(',')[1], 'base64'))).catch(() => {});
+    const file = codeFile ?? process.env.SF_VERIFICATION_CODE_FILE;
+    let code = process.env.SF_VERIFICATION_CODE;
+    if (!code && file) {
+      console.log(`Salesforce sent a verification code to the user's email. Put the code in ${file} — waiting up to 15 minutes…`);
+      for (let i = 0; i < 900 && !code; i++) {
+        code = existsSync(file) ? readFileSync(file, 'utf8').trim() : '';
+        if (!code) await sleep(1000);
+      }
+    }
+    if (!code)
+      throw new Error(
+        'Salesforce asks to verify the user (a code sent by email) and none was given: trust this machine’s IP range (Setup › Network Access), use an SFDX auth URL, or give the code with --code-file.'
+      );
+    const sent = await d.evaluate(
+      `(() => { const c = [...document.querySelectorAll('input#emc, input[name="emc"], input[type="text"], input[type="tel"]')].find((e) => e.offsetParent); if (!c) return 'no code box'; const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(c, ${JSON.stringify(code)}); c.dispatchEvent(new Event('input', { bubbles: true })); c.dispatchEvent(new Event('change', { bubbles: true })); const b = document.querySelector('#save, input[type="submit"], button[type="submit"]'); if (!b) return 'no Verify button'; b.click(); return 'sent'; })()`
+    );
+    if (sent !== 'sent') throw new Error(`The verification page was not as expected (${sent}).`);
+    await sleep(3000);
+    await d.settle();
+    now = await d.url();
+  }
   if (!/\/lightning\//.test(now))
     throw new Error(
       `Still not in Salesforce (${now.slice(0, 80)}): a wrong username or password, or Salesforce asks to verify it is you.`
@@ -432,7 +458,7 @@ async function main() {
   opts.group = opts.group || process.env.NOMADQA_GROUP || '';
   if (opts.help || !opts.files.length) {
     console.log(
-      'Usage: node nomadqa/runner/run.mjs <test.nomadqa.json | group.json | report.junit.xml | folder…> (--as <login> | --org <alias> | --auth-url <sfdx auth url>) [--group <name>] [--logins logins.json] [--env-file .env] [--parallel N] [--headed] [--out <folder>]'
+      'Usage: node nomadqa/runner/run.mjs <test.nomadqa.json | group.json | report.junit.xml | folder…> (--as <login> | --org <alias> | --auth-url <sfdx auth url>) [--group <name>] [--logins logins.json] [--env-file .env] [--code-file code.txt] [--parallel N] [--headed] [--out <folder>]'
     );
     process.exit(opts.help ? 0 : 2);
   }
@@ -489,7 +515,7 @@ async function main() {
     let sid;
     if (passwordLogin) {
       console.log(`Logging in as ${asName ?? passwordLogin.username}…`);
-      host = await loginWithPassword(browser, passwordLogin);
+      host = await loginWithPassword(browser, passwordLogin, { codeFile: opts.codeFile, out: opts.out });
       sid = await browser.session(host);
     } else {
       console.log(`Logging in to ${host}…`);
