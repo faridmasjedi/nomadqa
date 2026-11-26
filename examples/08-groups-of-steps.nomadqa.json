@@ -1,0 +1,79 @@
+{
+  "nomadqa": "test",
+  "version": 1,
+  "name": "Groups of steps",
+  "group": "Groups",
+  "cleanup": true,
+  "steps": [
+    {
+      "action": "data",
+      "recipe": {
+        "name": "Demo data",
+        "nodes": [
+          {
+            "id": "a",
+            "object": "Account",
+            "count": 1,
+            "rules": {
+              "Name": {
+                "kind": "pattern",
+                "value": "NomadQA Groups {0000}"
+              },
+              "Industry": {
+                "kind": "fixed",
+                "value": "Energy"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "action": "group",
+      "name": "Open the account",
+      "steps": [
+        {
+          "action": "open",
+          "path": "/lightning/o/Account/list"
+        },
+        {
+          "action": "group",
+          "name": "Find it in the list",
+          "steps": [
+            {
+              "action": "search",
+              "box": "Search this list...",
+              "text": "{{a-1.Name}}"
+            },
+            {
+              "action": "expect",
+              "kind": "text",
+              "value": "{{a-1.Name}}"
+            }
+          ]
+        },
+        {
+          "action": "open",
+          "record": "{{a-1}}"
+        }
+      ]
+    },
+    {
+      "action": "group",
+      "name": "Check what it shows",
+      "steps": [
+        {
+          "action": "expect",
+          "kind": "title",
+          "value": "{{a-1.Name}}"
+        },
+        {
+          "action": "expect",
+          "kind": "field",
+          "field": "Industry",
+          "value": "Energy"
+        }
+      ]
+    }
+  ]
+}

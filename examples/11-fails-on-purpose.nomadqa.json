@@ -1,0 +1,46 @@
+{
+  "nomadqa": "test",
+  "version": 1,
+  "name": "Fails on purpose (to see a failure report)",
+  "group": "Demo-failing",
+  "cleanup": true,
+  "steps": [
+    {
+      "action": "data",
+      "recipe": {
+        "name": "Demo data",
+        "nodes": [
+          {
+            "id": "a",
+            "object": "Account",
+            "count": 1,
+            "rules": {
+              "Name": {
+                "kind": "pattern",
+                "value": "NomadQA Failing {0000}"
+              },
+              "Industry": {
+                "kind": "fixed",
+                "value": "Energy"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "action": "open",
+      "record": "{{a-1}}"
+    },
+    {
+      "action": "expect",
+      "kind": "field",
+      "field": "Industry",
+      "value": "Finance"
+    },
+    {
+      "action": "click",
+      "label": "This is never reached"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "nomadqa": "test",
+  "version": 1,
+  "name": "Things that must NOT show",
+  "group": "Permissions",
+  "cleanup": true,
+  "steps": [
+    {
+      "action": "data",
+      "recipe": {
+        "name": "Demo data",
+        "nodes": [
+          {
+            "id": "a",
+            "object": "Account",
+            "count": 1,
+            "rules": {
+              "Name": {
+                "kind": "pattern",
+                "value": "NomadQA Guard {0000}"
+              },
+              "Industry": {
+                "kind": "fixed",
+                "value": "Energy"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "action": "open",
+      "record": "{{a-1}}"
+    },
+    {
+      "action": "expect",
+      "kind": "button",
+      "value": "Edit"
+    },
+    {
+      "action": "expect",
+      "kind": "no-button",
+      "value": "Launch Rocket"
+    },
+    {
+      "action": "expect",
+      "kind": "no-text",
+      "value": "Insufficient Privileges"
+    },
+    {
+      "action": "expect",
+      "kind": "no-text",
+      "value": "You don't have access"
+    },
+    {
+      "action": "expect",
+      "kind": "field",
+      "field": "Phone",
+      "op": "empty"
+    },
+    {
+      "action": "expect",
+      "kind": "field",
+      "field": "Industry",
+      "op": "filled"
+    }
+  ]
+}

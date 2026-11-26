@@ -1,0 +1,55 @@
+{
+  "nomadqa": "test",
+  "version": 1,
+  "name": "Open the main pages",
+  "group": "Smoke",
+  "cleanup": true,
+  "steps": [
+    {
+      "action": "open",
+      "path": "/lightning/page/home"
+    },
+    {
+      "action": "wait",
+      "until": "load"
+    },
+    {
+      "action": "expect",
+      "kind": "title",
+      "op": "contains",
+      "value": "Home"
+    },
+    {
+      "action": "open",
+      "path": "/lightning/o/Account/list"
+    },
+    {
+      "action": "expect",
+      "kind": "url",
+      "op": "contains",
+      "value": "/o/Account/list"
+    },
+    {
+      "action": "expect",
+      "kind": "text",
+      "value": "Accounts"
+    },
+    {
+      "action": "open",
+      "path": "/lightning/o/Contact/list"
+    },
+    {
+      "action": "expect",
+      "kind": "text",
+      "value": "Contacts"
+    },
+    {
+      "action": "expect",
+      "kind": "no-text",
+      "value": "Insufficient Privileges"
+    },
+    {
+      "action": "shot"
+    }
+  ]
+}

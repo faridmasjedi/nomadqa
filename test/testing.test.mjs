@@ -603,3 +603,65 @@ test('a group in a group runs, and its failure says where; Stop ends a run and r
     [true, null, null]
   );
 });
+
+test('login with an SFDX auth URL: token exchange, then the frontdoor link', async () => {
+  const { sessionFromAuthUrl } = await import('../extension/core/authurl.js');
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, body: String(init.body) });
+    return {
+      ok: true,
+      json: async () => ({
+        access_token: 'SID123',
+        instance_url: 'https://acme.my.salesforce.com',
+        id: 'https://login.salesforce.com/id/00DX/005USER',
+      }),
+    };
+  };
+  const a = await sessionFromAuthUrl('force://PlatformCLI::REFRESH@acme.my.salesforce.com', {
+    retUrl: '/lightning/page/home',
+    fetchImpl,
+  });
+  assert.equal(calls[0].url, 'https://acme.my.salesforce.com/services/oauth2/token');
+  assert.match(calls[0].body, /grant_type=refresh_token.*client_id=PlatformCLI.*refresh_token=REFRESH/);
+  assert.equal(a.userId, '005USER');
+  assert.equal(a.host, 'acme.my.salesforce.com');
+  assert.match(a.frontdoor, /frontdoor\.jsp\?sid=SID123&retURL=%2Flightning%2Fpage%2Fhome$/);
+  await assert.rejects(sessionFromAuthUrl('not a url'), /force:\/\//);
+  await assert.rejects(
+    sessionFromAuthUrl('force://a::b@x.my.salesforce.com', {
+      fetchImpl: async () => ({ ok: false, json: async () => ({ error_description: 'expired access/refresh token' }) }),
+    }),
+    /did not accept the auth URL: expired/
+  );
+
+  // The login step: no login page, the frontdoor link is opened, and the user is the one of the token
+  const opened = [];
+  const sent = [];
+  const driver = {
+    open: async (u) => opened.push(u),
+    load: async (u) => opened.push(u),
+    settle: async () => {},
+    url: async () => 'https://acme.lightning.force.com/lightning/page/home',
+    step: async (s) => (sent.push(s), { ok: true }),
+    keepSession: async () => sent.push('kept'),
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = fetchImpl;
+  try {
+    const st = stepper(
+      { steps: [] },
+      { driver, sf: { host: 'acme.my.salesforce.com', query: async () => [], facts: async () => ({}) }, logins: { rep: { authUrl: 'force://PlatformCLI::REFRESH@acme.my.salesforce.com' } } }
+    );
+    const r = await st.run({ action: 'login', login: 'rep' });
+    assert.equal(r.ok, true, r.message);
+    assert.match(opened[0], /frontdoor\.jsp\?sid=SID123/);
+    assert.ok(!sent.some((x) => x?.action === 'login-form'), 'no login form');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.match(
+    stepText({ action: 'login', login: 'rep' }),
+    /Log in/
+  );
+});

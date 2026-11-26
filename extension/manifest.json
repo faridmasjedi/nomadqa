@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NomadQA",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Testing for Salesforce: test data that looks real, checked before it is saved, and cleaned up after.",
   "icons": {
     "16": "icons/16.png",

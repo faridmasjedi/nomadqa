@@ -1,8 +1,14 @@
 # Run NomadQA tests anywhere
 
+![The headless runner](docs/media/gif/headless.gif)
+
+[▶ Video: run it anywhere](docs/media/video/08-headless-and-ci.mp4)
+
 NomadQA tests also run without the extension, with no one watching. You can run them on a build server, in your CI
 (GitHub Actions, GitLab, Jenkins, Azure DevOps, Bitbucket…), or on your own computer. It is **one command**. You
 add it to your pipeline your own way; NomadQA does not ship a pipeline file.
+
+> Looking for ready pipeline files (GitHub Actions, secrets, Google Cloud, AWS, GitLab, Jenkins…) and how to keep reports when a test fails? See **[CI, secrets and reports](docs/ci.md)**.
 
 ## What you need
 
@@ -26,12 +32,16 @@ Choose one:
 
 Use a sandbox or a test org. The session stays in the browser and in memory. Nothing is saved but the reports.
 
-Tests with **Log in** steps (as another user) need those users' passwords. Put them in `--logins logins.json`, or in
-the secret `NOMADQA_LOGINS` (the same JSON):
+Tests with **Log in** steps (as another user) need a login for each user. Give them in `--logins logins.json` (or the secret `NOMADQA_LOGINS`, the same JSON), with a password **or an SFDX auth URL** per user:
 
 ```json
-{ "sales-user": { "url": "https://test.salesforce.com", "username": "ann@acme.com.uat", "password": "…" } }
+{
+  "sales-user": { "url": "https://test.salesforce.com", "username": "ann@acme.com.uat", "password": "…" },
+  "service-user": { "authUrl": "force://…" }
+}
 ```
+
+Or one environment variable per user: `NOMADQA_AUTH_URL_SERVICE_USER=force://…` is the login `service-user`. A test that logs in runs in a browser context of its own. For many users, one job per group and cloud secrets, see **[CI, secrets and reports](docs/ci.md)**.
 
 ## Run
 

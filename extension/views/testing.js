@@ -2586,7 +2586,7 @@ export function testingViews(ctx) {
         { class: 'muted small' },
         'For ',
         h('b', {}, 'Log in'),
-        ' steps: the test starts on the login page and types these. They stay in this browser; a test only names the login, so a downloaded test never holds a password. To test as another user without a password, use ',
+        ' steps: the test starts on the login page and types the username and password — or, with an SFDX auth URL, goes in without a login page. They stay in this browser; a test only names the login, so a downloaded test never holds a password. To test as another user without a password, use ',
         h('b', {}, 'Log in as a user'),
         ' (Login-As) instead.'
       ),
@@ -2607,6 +2607,7 @@ export function testingViews(ctx) {
                   h('th', {}, 'Login page'),
                   h('th', {}, 'Username'),
                   h('th', {}, 'Password'),
+                  h('th', {}, 'or SFDX auth URL'),
                   h('th', {}, '')
                 )
               ),
@@ -2641,6 +2642,15 @@ export function testingViews(ctx) {
                     h(
                       'td',
                       {},
+                      field(l, 'authUrl', {
+                        type: 'password',
+                        placeholder: 'force://… (instead of a password)',
+                        'aria-label': 'SFDX auth URL',
+                      })
+                    ),
+                    h(
+                      'td',
+                      {},
                       h(
                         'button',
                         {
@@ -2667,7 +2677,7 @@ export function testingViews(ctx) {
               { class: 'muted small' },
               'Headless runner: ',
               h('code', {}, '--logins logins.json'),
-              ' (the same names, with url, username and password)'
+              ' (the same names, with url, username and password — or authUrl); one NOMADQA_AUTH_URL_<NAME> variable per user also works'
             )
           )
         : null
