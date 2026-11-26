@@ -1,9 +1,9 @@
-# Publishes a GitHub Release when a version tag is pushed: nomadqa-v0.3.0 → "NomadQA 0.3.0" with both zips and the
+# Publishes a GitHub Release when a plain version tag is pushed: nomadqa-v0.3.0 → "NomadQA 0.3.0" with both zips and the
 # notes from that version's section of CHANGELOG.md.
 name: release
 on:
   push:
-    tags: ['nomadqa-v*']
+    tags: ['nomadqa-v[0-9]+.[0-9]+.[0-9]+']      # a plain version; the build tags (…-build.7) never match
 permissions:
   contents: write
 jobs:

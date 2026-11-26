@@ -68,4 +68,4 @@ Testing for Salesforce: Inspector, Recorder, Tests, Runs, Agent and the headless
 
 1. Add a heading `## [x.y.z] · date` with what changed.
 2. Set the same version in `extension/manifest.json` and `package.json`.
-3. Tag it `nomadqa-vX.Y.Z` and push the tag. The release workflow runs the tests, builds `nomadqa-extension.zip` and `nomadqa-runner.zip`, and publishes a GitHub Release with the notes of that version.
+3. Tag it `nomadqa-vX.Y.Z` and push the tag. (Every merge into `main` also gets a build tag by itself: `nomadqa-vX.Y.Z-build.N`. Build tags make no release.) The release workflow runs the tests, builds `nomadqa-extension.zip` and `nomadqa-runner.zip`, and publishes a GitHub Release with the notes of that version.
