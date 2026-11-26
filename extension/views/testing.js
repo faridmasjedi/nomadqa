@@ -2624,6 +2624,7 @@ export function testingViews(ctx) {
           '+ Add a login'
         )
       ),
+      h('datalist', { id: 'nomadqa-login-pages' }, ...pages.map(([v, t]) => h('option', { value: v }, t))),
       h(
         'p',
         { class: 'muted small' },
@@ -2665,12 +2666,13 @@ export function testingViews(ctx) {
                     h(
                       'td',
                       {},
-                      select(
-                        l.url,
-                        pages.some(([v]) => v === l.url) ? pages : [[l.url, l.url], ...pages],
-                        (v) => ((l.url = v), render()),
-                        { 'aria-label': 'Login page' }
-                      )
+                      field(l, 'url', {
+                        list: 'nomadqa-login-pages',
+                        placeholder: 'https://yourcompany.my.salesforce.com',
+                        style: 'min-width: 260px',
+                        title: 'Pick one, or type your own My Domain (https://yourcompany.my.salesforce.com)',
+                        'aria-label': 'Login page',
+                      })
                     ),
                     h('td', {}, field(l, 'username', { placeholder: 'name@company.com', 'aria-label': 'Username' })),
                     h(
