@@ -3,11 +3,13 @@
 Every file in [`examples/`](https://github.com/faridmasjedi/nomadqa/tree/main/examples) is a real test, run against a scratch org. They make their own data, so they work in any org with Accounts, Contacts and Opportunities — and clean up after themselves.
 
 ```sh
-node runner/run.mjs examples --org my-sandbox            # all of them
-node runner/run.mjs examples --group Smoke --org my-sandbox
+node runner/run.mjs examples/01-open-pages.nomadqa.json --org my-sandbox     # one test
+node runner/run.mjs examples --group Smoke --org my-sandbox                  # one group (Smoke, Create, Data, Search, Groups, Advanced…)
 ```
 
 In NomadQA: Tests › **Upload…** and choose a file.
+
+Two groups are not meant to pass by default: **Demo-failing** (`11`, fails on purpose) and **Needs-setup** (`12`, needs Login-As and a real user). Run the others by group, not the whole folder.
 
 ## What you get from them
 
@@ -112,7 +114,7 @@ Open **The steps** to read a test as sentences — the same words you see in Tes
 
 ### 12-log-in-as-a-user
 
-**Group:** Permissions · **Shows:** **log in as** another user.
+**Group:** Needs-setup · **Shows:** **log in as** another user.
 
 **You learn:** Test what another user sees. Needs "Administrators Can Log in as Any User" and a real user name; **not run** in the scratch org used for these examples.
 

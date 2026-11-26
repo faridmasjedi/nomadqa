@@ -142,7 +142,7 @@ The runner never needs a `.env` file. It reads **environment variables**; a `.en
 | **The Salesforce CLI** | your computer | `--org my-alias` (the CLI's own login) |
 | **The extension's Settings › Logins** | the extension | logins saved in the browser (not the runner) |
 
-**Who the run is.** For the run itself the runner takes, in this order: `--login-url`, an auth URL (`--auth-url`, `--as <login>`, `SF_AUTH_URL`), `--org`, then `SF_USERNAME` + `SF_PASSWORD`. If every test starts with a **Log in** step, no user is needed: each test logs in by itself.
+**Who the run is.** What you give on the command line wins over the environment (or a `.env` file): `--login-url`, `--auth-url`, `--as <login>`, `--org`. Otherwise the environment: `NOMADQA_LOGIN_URL`, `SF_AUTH_URL`, then `SF_USERNAME` + `SF_PASSWORD`. So `--org my-sandbox` always means that org, even if a `.env` holds another `SF_AUTH_URL`. If every test starts with a **Log in** step, no user is needed: each test logs in by itself.
 
 **Who a test is.** A test's `Log in` step names a login (`sales-rep`); the runner looks it up in this order and merges: the JSON file or `NOMADQA_LOGINS`, then the per-user variables `NOMADQA_AUTH_URL_SALES_REP`, `NOMADQA_USERNAME_SALES_REP` and `NOMADQA_PASSWORD_SALES_REP` (the name is lower-cased and `_` becomes `-`). The test file holds only the name, never the secret.
 

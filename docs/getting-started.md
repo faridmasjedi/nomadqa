@@ -35,7 +35,7 @@ Select the test and click **Run in …**. Each step shows ✓ or ✕, with the t
 ## 4 · Run it without anyone watching
 
 ```sh
-node runner/run.mjs examples --org my-sandbox
+node runner/run.mjs examples/01-open-pages.nomadqa.json --org my-sandbox
 ```
 
 Node 22 and Chrome, nothing to install. See [Run anywhere](runner.md) for logins, CI and reports.

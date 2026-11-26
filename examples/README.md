@@ -3,11 +3,11 @@
 Real tests, each run against a scratch org. They make their own data (and delete it), so they work in any org with Accounts, Contacts and Opportunities.
 
 ```sh
-node runner/run.mjs examples --org my-sandbox               # all
-node runner/run.mjs examples --group Smoke --org my-sandbox # one group
+node runner/run.mjs examples/01-open-pages.nomadqa.json --org my-sandbox   # one test
+node runner/run.mjs examples --group Smoke --org my-sandbox                # one group
 ```
 
-In NomadQA: Tests › **Upload…**.
+In NomadQA: Tests › **Upload…**. Two groups are not meant to pass by default: **Demo-failing** (`11`) and **Needs-setup** (`12`).
 
 | File | Shows |
 | --- | --- |

@@ -40,7 +40,7 @@ How a QA creates the tests as an automation user, a ready GitHub Actions file wi
 ## Run it without anyone watching
 
 ```sh
-node runner/run.mjs examples --org my-sandbox      # with the Salesforce CLI
+node runner/run.mjs examples/01-open-pages.nomadqa.json --org my-sandbox   # with the Salesforce CLI
 node runner/run.mjs tests/nomadqa                  # logins from a .env file (SF_AUTH_URL, SF_USERNAME + SF_PASSWORD…)
 ```
 
