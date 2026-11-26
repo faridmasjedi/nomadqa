@@ -18,7 +18,7 @@ add it to your pipeline your own way; NomadQA does not ship a pipeline file.
   (`git clone <this repository> nomadqa`), add it as a git submodule, or copy it. The command runs
   `nomadqa/runner/run.mjs`, which uses `nomadqa/extension/core`.
 - **Your tests** in the repository, for example in `tests/nomadqa/`. In NomadQA, **Tests › Download** saves a test as
-  `*.nomadqa.json`; a group's download saves `*.nomadqa-group.json`.
+  `*.nomadqa.json`; a test group's download saves a group file, `*.nomadqa-group.json`.
 
 ## Log in to the org
 
@@ -71,7 +71,7 @@ A variable already set in the environment wins, so in CI the secrets are used. *
 # every test in a folder
 node nomadqa/runner/run.mjs tests/nomadqa
 
-# one group, 2 tests at a time, reports in a folder of your choice
+# one test group, 2 tests at a time, reports in a folder of your choice
 node nomadqa/runner/run.mjs tests/nomadqa --group Smoke --parallel 2 --out nomadqa-reports
 
 # one test, on your computer, watching the browser
@@ -81,7 +81,7 @@ node nomadqa/runner/run.mjs tests/nomadqa/new-contact.nomadqa.json --org my-sand
 | Option                               | What it does                                                                                                             |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | files or folders                     | Test files, group files, NomadQA's JUnit reports, or folders (every `*.nomadqa.json` and `*.nomadqa-group.json` in them) |
-| `--group Smoke` (or `NOMADQA_GROUP`) | Only that group's tests                                                                                                  |
+| `--group Smoke` (or `NOMADQA_GROUP`) | Only that test group's tests                                                                                                  |
 | `--parallel 4`                       | 4 tests at a time, each with its own cookies                                                                             |
 | `--out folder`                       | Where the reports go (default `nomadqa-reports`)                                                                         |
 | `--headed`                           | Shows the browser                                                                                                        |
@@ -97,7 +97,7 @@ Everything is in the `--out` folder (`nomadqa-reports/` unless you choose anothe
 | File               | For whom                | What is in it                                                                                                                                                                                                                                               |
 | ------------------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `report.html`      | People (QAs, reviewers) | One page: the totals, every test and step with its time, and for each failure the step, why it failed, what was expected and what the page had, Salesforce's messages, the page's address, and a picture. It opens in any browser, with nothing else needed |
-| `<test>.junit.xml` | Your CI                 | One per test, and one per group. Most CI tools show these as a list of tests (passed, failed, skipped). NomadQA can also read them back: **Tests › Upload** runs that test again                                                                            |
+| `<test>.junit.xml` | Your CI                 | One per test, and one per test group. Most CI tools show these as a list of tests (passed, failed, skipped). NomadQA can also read them back: **Tests › Upload** runs that test again                                                                            |
 | `<test>-step3.jpg` | People                  | A small picture (about 100 KB) of the page when that step failed. Only failed steps get one                                                                                                                                                                 |
 | `summary.md`       | Your CI's job page      | A short table of tests, and why each failed                                                                                                                                                                                                                 |
 

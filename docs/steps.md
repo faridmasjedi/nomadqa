@@ -20,7 +20,7 @@ Every step is a JSON object with an `action`. Any step can also have `"optional"
 | `login` | Log in (a test can start with it, from the login page) | `login` — a login from Settings › Logins: a username and password, or an **SFDX auth URL**. In the runner: `NOMADQA_LOGINS`, `--logins`, or `NOMADQA_AUTH_URL_<NAME>` |
 | `loginas` | Log in as a user | `user` — username or name; back to you at the end |
 | `shot` | Take a screenshot | — |
-| `group` | Group of steps | `name`, `steps: [...]` |
+| `group` | Step group (a group of steps) | `name`, `steps: [...]` |
 
 ## Checks (`expect`)
 
@@ -54,4 +54,4 @@ Every step is a JSON object with an `action`. Any step can also have `"optional"
 }
 ```
 
-A group file is `*.nomadqa-group.json`; NomadQA's own JUnit reports can be uploaded to run again.
+A group file (a downloaded test group) is `*.nomadqa-group.json`; NomadQA's own JUnit reports can be uploaded to run again.
