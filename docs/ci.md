@@ -128,6 +128,29 @@ sf org display --verbose --json --target-org sales-rep      # result.sfdxAuthUrl
 
 An auth URL (a refresh token) and a password both **let anyone act as that user**. Keep them in a secret store; never in the repository, a log or a test file. Salesforce allows only a few refresh tokens per user and connected app (by default 5; the oldest is revoked), so log each user in once and keep the URL.
 
+### How the runner finds a login
+
+The runner never needs a `.env` file. It reads **environment variables**; a `.env` file is only one way to set them (handy on your own computer). Where the logins can come from — use any one:
+
+| Way | For | How |
+| --- | --- | --- |
+| **Environment variables** (CI secrets) | CI | `env:` in the job: `SF_AUTH_URL`, or `SF_USERNAME` + `SF_PASSWORD` + `SF_LOGIN_PAGE`. Nothing is written to disk |
+| **A `.env` file** | your computer, or one secret holding many lines | `.env` in the folder you run from, or `--env-file path`. Read at the start; a variable already set wins |
+| **A JSON file** | many users in one file | `--logins logins.json`: `{ "sales-rep": { "authUrl": "force://…" }, "agent": { "username": "…", "password": "…", "url": "https://test.salesforce.com" } }` |
+| **One JSON variable** | many users in one secret | `NOMADQA_LOGINS` with the same JSON |
+| **Command-line options** | one run | `--auth-url force://…` (the user the run is), `--login-url` (a one-time login link) |
+| **The Salesforce CLI** | your computer | `--org my-alias` (the CLI's own login) |
+| **The extension's Settings › Logins** | the extension | logins saved in the browser (not the runner) |
+
+**Who the run is.** For the run itself the runner takes, in this order: `--login-url`, an auth URL (`--auth-url`, `--as <login>`, `SF_AUTH_URL`), `--org`, then `SF_USERNAME` + `SF_PASSWORD`. If every test starts with a **Log in** step, no user is needed: each test logs in by itself.
+
+**Who a test is.** A test's `Log in` step names a login (`sales-rep`); the runner looks it up in this order and merges: the JSON file or `NOMADQA_LOGINS`, then the per-user variables `NOMADQA_AUTH_URL_SALES_REP`, `NOMADQA_USERNAME_SALES_REP` and `NOMADQA_PASSWORD_SALES_REP` (the name is lower-cased and `_` becomes `-`). The test file holds only the name, never the secret.
+
+**Several users in parallel.** Two ways:
+
+- **One job per user** (parallel jobs, one runner machine each): each job gets only its own user's secrets as variables, or writes its own `.env` from its own secret. In GitHub Actions give each user an Environment with a secret `NOMADQA_ENV` holding that user's lines, and in the job `printf '%s\n' "$NOMADQA_ENV" > .env`. Each job has its own machine, so the files never meet.
+- **One job, many users, tests side by side** (`--parallel 3`): put every user's variables in one place (the same `.env`, `NOMADQA_LOGINS` or per-user variables) and let each test start with `Log in`. Each test runs in its own browser context, so users do not mix.
+
 **On your own computer** put the same variables in a file named `.env` in the folder you run from (`--env-file path` for another name). The runner reads it; a variable already set in the environment wins, so in CI the secrets win and no file is needed.
 
 ```sh
@@ -136,6 +159,20 @@ node nomadqa/runner/run.mjs tests/nomadqa/sales-rep
 ```
 
 `.env` holds credentials: **never commit it** (this repository ignores it; add `.env` to your own `.gitignore`). `.env.example` shows the names.
+
+![The runner reads .env](media/gif/env-run.gif)
+
+**The whole `.env` as one secret.** Instead of many secrets you can keep one multi-line secret `NOMADQA_ENV` — the contents of a `.env` file with every user's lines — and write it to a file in the job; the runner reads it:
+
+```yaml
+      - name: Logins
+        env:
+          NOMADQA_ENV: ${{ secrets.NOMADQA_ENV }}
+        run: printf '%s\n' "$NOMADQA_ENV" > .env      # the runner reads .env
+      - run: node nomadqa/runner/run.mjs tests/nomadqa --parallel 3 --out nomadqa-reports
+```
+
+The same works from AWS (`aws secretsmanager get-secret-value … --query SecretString --output text > .env`), Google Cloud (`gcloud secrets versions access latest --secret=nomadqa-env > .env`), Vault and others. Setting the variables directly in the job's `env:` is simpler and leaves nothing on disk; use the file when one secret per user is too many. Never upload the file: keep only the `nomadqa-reports` folder, and delete `.env` at the end.
 
 **One user per job.** Name the secrets the same for every user and keep users apart with one **GitHub Environment** each; the job takes the environment of its user. In the other stores keep one secret per user and read it into the same variables.
 
@@ -509,12 +546,12 @@ Put the **run id** in the path so runs never overwrite each other, keep failed r
 - Each user's job logs in once. Salesforce limits concurrent logins and API calls per org, not per job; spread the schedule if you see throttling.
 - Reports are **per user**: each job has its own `report.html`, JUnit and pictures. The last job gathers them into one artifact and one summary; the JUnit files can also go to your CI's test tab together.
 
-**One job for several users** (when you prefer one run): keep each user's login outside the tests and let a test say who to be with a `Log in` step:
+**One job for several users** (when you prefer one run): keep each user's login outside the tests and let each test start with a `Log in` step that names its user. If **every** test starts that way you need no user for the run at all — each test logs in by itself:
 
 ```sh
 NOMADQA_AUTH_URL_SALES_REP=force://…        # the login "sales-rep"
 NOMADQA_AUTH_URL_SERVICE_AGENT=force://…    # the login "service-agent"
-SF_AUTH_URL=force://…                       # the user the run starts as (data and queries)
+# SF_AUTH_URL=force://…                     # only if some test does not start with a Log in step
 node nomadqa/runner/run.mjs tests/nomadqa --parallel 3 --out nomadqa-reports
 ```
 

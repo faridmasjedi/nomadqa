@@ -46,6 +46,25 @@ Tests with **Log in** steps (as another user) need a login for each user. Give t
 
 Or one environment variable per user: `NOMADQA_AUTH_URL_SERVICE_USER=force://…` is the login `service-user`. A test that logs in runs in a browser context of its own. For many users, one job per group and cloud secrets, see **[CI, secrets and reports](docs/ci.md)**.
 
+## On your own computer: a `.env` file
+
+Put the logins in a file named `.env` in the folder you run from (the runner reads it by itself; `--env-file other.env` for another name):
+
+```sh
+cp nomadqa/.env.example .env          # or write it by hand
+node nomadqa/runner/run.mjs tests/nomadqa
+```
+
+```sh
+# .env — never commit this file
+SF_AUTH_URL=force://…                         # the run is this user (or SF_USERNAME + SF_PASSWORD + SF_LOGIN_PAGE)
+NOMADQA_AUTH_URL_SALES_REP=force://…          # the login "sales-rep" for a test's Log in step
+NOMADQA_USERNAME_SERVICE_AGENT=agent@acme.com.uat
+NOMADQA_PASSWORD_SERVICE_AGENT=…
+```
+
+A variable already set in the environment wins, so in CI the secrets are used. **The file is optional**: the same names can be set as environment variables, in a `--logins logins.json` file, or in the secret `NOMADQA_LOGINS` — the table in [CI, secrets and reports](docs/ci.md) (*Secrets › How the runner finds a login*) lists every way. If **every** test starts with a **Log in** step you need no `SF_AUTH_URL` at all: each test logs in by itself, with its own login from the file.
+
 ## Run
 
 ```sh

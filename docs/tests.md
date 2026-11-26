@@ -33,6 +33,7 @@ Choose the step kind, fill its boxes, and read the sentence under it. [All steps
 | **In a tab** | select the test › **Run in …** | each step ✓/✕ with its time |
 | **A whole group** | give tests a group (Smoke, Regression…) › **Run all** | one JUnit and one HTML report for the group |
 | **Several at once** | **Run all** with **2–8 at a time**, each in its own window | speed (tests that log in as someone else still run alone, after the others) |
+| **From the login page** | a test whose first step is **Log in**: **Run from the login page** (or, when NomadQA is opened on a Salesforce login page, **Run (logs in first)**) | the tab starts on the login page, logs in with the login the test names, and the rest runs as that user — no session needed before it |
 | **Step by step on the page** | **Step by step on the page** | ▶ one step, ▶▶ to the end, change a step, **Save to the test** |
 | **Fix it on the page** | after a failed run (the steps before it run first) | the failing step, ready to change |
 | **Headless** | `node runner/run.mjs tests/ --org my-sandbox` | `report.html`, JUnit, a picture of a failed step; exit code 0/1/2 |
@@ -90,8 +91,15 @@ More in [Reports](reports.md).
 - A JUnit report NomadQA wrote carries its steps: **Upload** it to run that test again.
 - Runs keeps the pictures of the newest 20 runs that have one.
 
-## Log in as someone else
+## Log in, and start from the login page
 
+<video src="media/video/09-login-from-the-login-page.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+
+![Start from the login page](media/gif/login-from-the-login-page.gif)
+
+- **Two ways to start.** Open NomadQA on a logged-in Salesforce page and run as that user — or start from the **login page**: the NomadQA tab also shows on `login.salesforce.com`, `test.salesforce.com` and your org's own login page. A test whose first step is **Log in** needs no session: its tab opens on the login page, logs in, and the rest runs as that user. When you are logged in, such a test has both buttons: **Run in …** and **Run from the login page**.
+
+![Both ways to run it](media/gif/login-both-options.gif)
 - **Log in** — a login named in Settings › Logins: username and password, **or an SFDX auth URL** (no password, no login page). The test only names the login, never the secret. A test that logs in runs in its own browser context in the runner, so the next test is not that user. For 30 users from CI secrets see [CI, secrets and reports](ci.md).
 - **Log in as a user** — Salesforce's Login-As, for an admin (needs "Administrators Can Log in as Any User"). At the end you are yourself again.
 

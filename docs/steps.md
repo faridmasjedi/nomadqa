@@ -17,7 +17,7 @@ Every step is a JSON object with an `action`. Any step can also have `"optional"
 | `remember` | Remember a value | `field`, `as` → `{{as}}` |
 | `query` | Find records (SOQL) | `soql` (read-only), `count`, `save` |
 | `data` | Make test data | `recipe` → `{{a-1}}`, `{{a-1.Name}}`; deleted after the test |
-| `login` | Log in | `login` — a login from Settings › Logins: a username and password, or an **SFDX auth URL**. In the runner: `NOMADQA_LOGINS`, `--logins`, or `NOMADQA_AUTH_URL_<NAME>` |
+| `login` | Log in (a test can start with it, from the login page) | `login` — a login from Settings › Logins: a username and password, or an **SFDX auth URL**. In the runner: `NOMADQA_LOGINS`, `--logins`, or `NOMADQA_AUTH_URL_<NAME>` |
 | `loginas` | Log in as a user | `user` — username or name; back to you at the end |
 | `shot` | Take a screenshot | — |
 | `group` | Group of steps | `name`, `steps: [...]` |
