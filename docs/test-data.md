@@ -2,7 +2,7 @@
 
 Records that look real, with their links — for tests and demos.
 
-<video src="media/video/06-test-data.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/06-test-data.mp4" controls muted preload="metadata" poster="media/poster/06-test-data.jpg"></video>
 
 ## Plan
 

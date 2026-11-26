@@ -2,7 +2,7 @@
 
 Point at anything on a Salesforce page: what it is, and where it comes from. Then turn it into a step.
 
-<video src="media/video/01-inspector-to-test.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/01-inspector-to-test.mp4" controls muted preload="metadata" poster="media/poster/01-inspector-to-test.jpg"></video>
 
 *The whole journey: open NomadQA, Inspector, Inspect it, pick, Open in Tests, saved as a test.*
 

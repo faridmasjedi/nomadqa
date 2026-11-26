@@ -6,7 +6,7 @@ Recorded in a real scratch org with the real extension: every video is a whole j
 
 ### The NomadQA tour
 
-<video src="media/video/00-tour.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/00-tour.mp4" controls muted preload="metadata" poster="media/poster/00-tour.jpg"></video>
 
 ## Build a test
 

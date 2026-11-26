@@ -1,6 +1,6 @@
 # Get started
 
-<video src="media/video/00-tour.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/00-tour.mp4" controls muted preload="metadata" poster="media/poster/00-tour.jpg"></video>
 
 You need Chrome or Edge, and a Salesforce org you may test in (a sandbox or scratch org).
 

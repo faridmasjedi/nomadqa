@@ -4,7 +4,7 @@ A test is a list of steps. (Words that mean more than one thing — *group*, *lo
 
 ## Create a test
 
-<video src="media/video/03-write-and-organize-tests.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/03-write-and-organize-tests.mp4" controls muted preload="metadata" poster="media/poster/03-write-and-organize-tests.jpg"></video>
 
 | # | Way | Where | Good for |
 | --- | --- | --- | --- |
@@ -26,7 +26,7 @@ Choose the step kind, fill its boxes, and read the sentence under it. [All steps
 
 ## Run a test
 
-<video src="media/video/04-run-fix-and-step-by-step.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/04-run-fix-and-step-by-step.mp4" controls muted preload="metadata" poster="media/poster/04-run-fix-and-step-by-step.jpg"></video>
 
 | Way | How | You get |
 | --- | --- | --- |
@@ -93,7 +93,7 @@ More in [Reports](reports.md).
 
 ## Log in, and start from the login page
 
-<video src="media/video/09-login-from-the-login-page.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/09-login-from-the-login-page.mp4" controls muted preload="metadata" poster="media/poster/09-login-from-the-login-page.jpg"></video>
 
 ![Start from the login page](media/gif/login-from-the-login-page.gif)
 

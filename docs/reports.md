@@ -2,7 +2,7 @@
 
 Where to see what happened, and who it is for.
 
-<video src="media/video/05-reports.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/05-reports.mp4" controls muted preload="metadata" poster="media/poster/05-reports.jpg"></video>
 
 ## In NomadQA
 

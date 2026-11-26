@@ -5,7 +5,7 @@
 <div class="cta"><a class="btn" href="download.html">⬇ Download {{version}}</a><a class="btn alt" href="getting-started.html">Get started in 2 minutes</a><a class="btn alt" href="videos.html">Watch the videos</a><a class="btn alt" href="https://github.com/faridmasjedi/nomadqa">GitHub</a></div>
 </div>
 
-<video src="media/video/00-tour.mp4" controls muted preload="metadata" poster="media/tour-poster.png"></video>
+<video src="media/video/00-tour.mp4" controls muted preload="metadata" poster="media/poster/00-tour.jpg"></video>
 
 *The NomadQA tour — [all the videos](videos.md).*
 
