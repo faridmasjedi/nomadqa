@@ -65,3 +65,11 @@ npm run site     # the website → site/
 ```
 
 `extension/` is the extension · `runner/` the headless runner · `examples/` ready tests · `docs/` the website.
+
+## Security
+
+Found a vulnerability? Please report it privately: [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) — free to use, copy and change.
