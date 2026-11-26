@@ -45,7 +45,7 @@
     {
       "action": "expect",
       "kind": "no-text",
-      "value": "Aperture Science"
+      "value": "NomadQA record that does not exist"
     },
     {
       "action": "open",
