@@ -14,6 +14,9 @@
 //
 // "Log in" steps take their username and password from --logins (or NOMADQA_LOGINS, the same JSON):
 //   { "sales-user": { "url": "https://test.salesforce.com", "username": "…", "password": "…" } }
+// The run's own user: SF_AUTH_URL (the user's SFDX auth URL), or SF_USERNAME + SF_PASSWORD (+ SF_LOGIN_PAGE), or
+// --as <login> makes the run itself that user: the login's SFDX auth URL, or its username and password. Then the
+// data and query steps run as that user too (no separate admin).
 // or an SFDX auth URL instead of a password: { "sales-user": { "authUrl": "force://…" } }, or one environment variable
 // per user: NOMADQA_AUTH_URL_SALES_USER=force://… (the login "sales-user"). A test that logs in runs in a browser
 // context of its own, so the next test is not that user.
@@ -54,6 +57,7 @@ function args(argv) {
     else if (a === '--group') out.group = argv[++i];
     else if (a === '--out') out.out = argv[++i];
     else if (a === '--logins') out.logins = argv[++i];
+    else if (a === '--as') out.as = argv[++i];
     else if (a === '--chrome') out.chrome = argv[++i];
     else if (a === '--parallel') out.parallel = Math.max(1, parseInt(argv[++i], 10) || 1);
     else if (a === '--headed') out.headed = true;
@@ -366,6 +370,33 @@ async function fromAuthUrl(authUrl) {
 /** Does the test (or a group in it) log in as someone? Such a test runs in a browser context of its own. */
 const logsIn = (steps) => (steps ?? []).some((s) => s.action === 'login' || s.action === 'loginas' || logsIn(s.steps));
 
+/** The run's own login with a username and a password: the login page, then Lightning. → the org's host for the API. */
+async function loginWithPassword(browser, l) {
+  const d = browser.driver;
+  const url = l.url || 'https://login.salesforce.com';
+  await d.load(url.startsWith('http') ? url : `https://${url}`);
+  let typed;
+  let link = false;
+  for (let k = 0; k < 5; k++) {
+    typed = await d.step({ action: 'login-form', username: l.username, password: l.password ?? '' });
+    // "Log In with Username" was clicked: the form shows next; no answer just after it: the page is loading
+    if (typed?.link || (!typed && link)) {
+      link = true;
+      await sleep(2500);
+      continue;
+    }
+    break;
+  }
+  if (typed && typed.ok === false) throw new Error(typed.message);
+  await d.settle();
+  const now = await d.url();
+  if (!/\/lightning\//.test(now))
+    throw new Error(
+      `Still not in Salesforce (${now.slice(0, 80)}): a wrong username or password, or Salesforce asks to verify it is you.`
+    );
+  return new URL(now).host.replace(/\.lightning\.force\.com$/, '.my.salesforce.com').replace(/\.my\.salesforce-setup\.com$/, '.my.salesforce.com');
+}
+
 const gh = (s) =>
   String(s ?? '')
     .replace(/%/g, '%25')
@@ -377,11 +408,29 @@ async function main() {
   opts.group = opts.group || process.env.NOMADQA_GROUP || '';
   if (opts.help || !opts.files.length) {
     console.log(
-      'Usage: node nomadqa/runner/run.mjs <test.nomadqa.json | group.json | report.junit.xml | folder…> (--org <alias> | --auth-url <sfdx auth url>) [--group <name>] [--logins logins.json] [--parallel N] [--headed] [--out <folder>]'
+      'Usage: node nomadqa/runner/run.mjs <test.nomadqa.json | group.json | report.junit.xml | folder…> (--as <login> | --org <alias> | --auth-url <sfdx auth url>) [--group <name>] [--logins logins.json] [--parallel N] [--headed] [--out <folder>]'
     );
     process.exit(opts.help ? 0 : 2);
   }
-  const authUrl = opts.authUrl ?? process.env.SF_AUTH_URL ?? process.env.NOMADQA_AUTH_URL;
+  const logins = JSON.parse(opts.logins ? readFileSync(opts.logins, 'utf8') : process.env.NOMADQA_LOGINS || '{}');
+  // One secret per user: NOMADQA_AUTH_URL_SALES_REP=force://… is the login "sales-rep" (a Log in step names it)
+  for (const [key, value] of Object.entries(process.env)) {
+    const m = /^NOMADQA_AUTH_URL_(.+)$/.exec(key);
+    if (m && value) logins[m[1].toLowerCase().replace(/_/g, '-')] = { authUrl: value };
+  }
+  // --as <login>: the run itself is that user (their SFDX auth URL, or their username and password)
+  const asName = opts.as ?? process.env.NOMADQA_AS;
+  const asLogin = asName ? logins[asName] : null;
+  if (asName && !asLogin)
+    throw new Error(`No login “${asName}” for --as: add it to --logins / NOMADQA_LOGINS, or set NOMADQA_AUTH_URL_${asName.toUpperCase().replace(/-/g, '_')}.`);
+  // The run's own user with a username and a password: --as <login>, or SF_USERNAME + SF_PASSWORD (SF_LOGIN_PAGE:
+  // https://login.salesforce.com by default; https://test.salesforce.com for a sandbox or scratch org)
+  const byEnv =
+    process.env.SF_USERNAME && !opts.authUrl && !opts.loginUrl && !opts.org && !process.env.SF_AUTH_URL && !process.env.NOMADQA_AUTH_URL && !process.env.NOMADQA_LOGIN_URL
+      ? { url: process.env.SF_LOGIN_PAGE || 'https://login.salesforce.com', username: process.env.SF_USERNAME, password: process.env.SF_PASSWORD ?? '' }
+      : null;
+  const passwordLogin = asLogin && !asLogin.authUrl && asLogin.username ? asLogin : byEnv;
+  const authUrl = opts.authUrl ?? asLogin?.authUrl ?? process.env.SF_AUTH_URL ?? process.env.NOMADQA_AUTH_URL;
   const loginUrl =
     opts.loginUrl ??
     process.env.NOMADQA_LOGIN_URL ??
@@ -391,8 +440,9 @@ async function main() {
       ? JSON.parse(execFileSync('sf', ['org', 'open', '--url-only', '--json', '-o', opts.org], { encoding: 'utf8' }))
           .result.url
       : undefined);
-  if (!loginUrl) throw new Error('Give --org <alias> (Salesforce CLI), --auth-url (SF_AUTH_URL) or --login-url.');
-  const host = new URL(loginUrl).host;
+  if (!loginUrl && !passwordLogin)
+    throw new Error('Give --as <login>, --org <alias> (Salesforce CLI), --auth-url (SF_AUTH_URL) or --login-url.');
+  let host = loginUrl ? new URL(loginUrl).host : '';
   // A test, a group of tests, or a JUnit report NomadQA wrote: every test in it
   const tests = testFiles(opts.files)
     .flatMap((f) => {
@@ -407,20 +457,21 @@ async function main() {
     })
     .filter((t) => !opts.group || t.group.toLowerCase() === opts.group.toLowerCase());
   if (!tests.length) throw new Error(opts.group ? `No test in the group “${opts.group}”.` : 'No tests found.');
-  const logins = JSON.parse(opts.logins ? readFileSync(opts.logins, 'utf8') : process.env.NOMADQA_LOGINS || '{}');
-  // One secret per user: NOMADQA_AUTH_URL_SALES_REP=force://… is the login "sales-rep" (a Log in step names it)
-  for (const [key, value] of Object.entries(process.env)) {
-    const m = /^NOMADQA_AUTH_URL_(.+)$/.exec(key);
-    if (m && value) logins[m[1].toLowerCase().replace(/_/g, '-')] = { authUrl: value };
-  }
   const groups = new Map();
   mkdirSync(opts.out, { recursive: true });
   const browser = await launch(opts);
   let failedTests = 0;
   try {
-    console.log(`Logging in to ${host}…`);
-    await browser.login(loginUrl);
-    const sid = await browser.session(host);
+    let sid;
+    if (passwordLogin) {
+      console.log(`Logging in as ${asName ?? passwordLogin.username}…`);
+      host = await loginWithPassword(browser, passwordLogin);
+      sid = await browser.session(host);
+    } else {
+      console.log(`Logging in to ${host}…`);
+      await browser.login(loginUrl);
+      sid = await browser.session(host);
+    }
     if (!sid) throw new Error('Logged in, but no session was found for the API.');
     const sf = new Salesforce(host, sid);
     const parallel = Math.min(opts.parallel ?? 1, tests.length);
