@@ -15,7 +15,19 @@ mkdirSync(out, { recursive: true });
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const slug = (s) => s.toLowerCase().replace(/<[^>]+>/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '');
-const link = (href) => (/^(https?:|#|mailto:)/.test(href) ? href : href.replace(/\.md(#|$)/, '.html$1'));
+// Pages that became tabs of another page: links to their old files go to the tab
+const MOVED = {
+  'inspector': 'create.html#inspector', 'recorder': 'create.html#recorder', 'agent': 'create.html#agent',
+  'reports': 'tests.html#reports', 'runner': 'ci.html#runner-reference',
+  'steps': 'reference.html#steps', 'words': 'reference.html#words', 'examples': 'reference.html#examples', 'videos': 'reference.html#videos',
+  'versions': 'download.html#versions',
+};
+const link = (href) => {
+  if (/^(https?:|#|mailto:)/.test(href)) return href;
+  const m = /^([\w-]+)\.md(#.*)?$/.exec(href);
+  if (m && MOVED[m[1]]) return m[2] ? MOVED[m[1]].split('#')[0] + m[2] : MOVED[m[1]];
+  return href.replace(/\.md(#|$)/, '.html$1');
+};
 
 function inline(s) {
   const codes = [];
@@ -76,8 +88,8 @@ function render(md) {
 }
 
 const NAV = [
-  ['index', 'Home'], ['getting-started', 'Start'], ['inspector', 'Inspector'], ['recorder', 'Recorder'],
-  ['tests', 'Tests'], ['reports', 'Reports'], ['test-data', 'Test data'], ['agent', 'Agent'], ['runner', 'Runner'], ['ci', 'CI'], ['examples', 'Examples'], ['steps', 'Steps'], ['words', 'Words'], ['videos', 'Videos'], ['download', 'Download'], ['versions', 'Versions'],
+  ['index', 'Home'], ['getting-started', 'Start'], ['create', 'Create tests'], ['tests', 'Run and report'], ['test-data', 'Test data'],
+  ['ci', 'CI and runner'], ['reference', 'Reference'], ['download', 'Download'],
 ];
 const CSS = readFileSync(join(docs, 'site.css'), 'utf8');
 const TABS_JS = `(function(){function setup(t){var tl=t.querySelector(':scope > .tablist'),tabs=[].slice.call(tl.querySelectorAll(':scope > [role=tab]')),panels=[].slice.call(t.querySelectorAll(':scope > .tabpanel'));function pick(n,keep){tabs.forEach(function(b,k){b.setAttribute('aria-selected',k===n);b.tabIndex=k===n?0:-1;panels[k].hidden=k!==n});if(t.classList.contains('page-tabs')&&!keep)history.replaceState(null,'','#'+panels[n].id)}tabs.forEach(function(b,n){b.onclick=function(){pick(n)};b.onkeydown=function(e){var k=e.key==='ArrowRight'?n+1:e.key==='ArrowLeft'?n-1:-1;if(k>=0&&k<tabs.length){pick(k);tabs[k].focus()}}});t.pick=pick;t.panels=panels}document.querySelectorAll('.tabs').forEach(setup);function fromHash(){var id=decodeURIComponent(location.hash.slice(1));if(!id)return;var el=document.getElementById(id);if(!el)return;var p=el.closest('.tabpanel');while(p){var t=p.parentElement;var n=t.panels.indexOf(p);if(n>=0&&p.hidden)t.pick(n,true);p=t.closest('.tabpanel')}el.scrollIntoView()}fromHash();addEventListener('hashchange',fromHash)})();`;
@@ -98,14 +110,14 @@ function pageWithTabs(md) {
   for (const l of lines) {
     if (/^```/.test(l)) fence = !fence;
     const h = !fence && /^## (.+)$/.exec(l);
-    if (h) { cur = { title: h[1].replace(/^\d+\s*[·.]\s*/, '').replace(/`/g, ''), lines: [] }; sections.push(cur); continue; }
+    if (h) { const g = /<!--\s*group:\s*(.+?)\s*-->/.exec(h[1]); cur = { title: h[1].replace(/<!--.*?-->/g, '').trim().replace(/^\d+\s*[·.]\s*/, '').replace(/`/g, ''), group: g?.[1] ?? '', lines: [] }; sections.push(cur); continue; }
     (cur ? cur.lines : intro).push(l);
   }
   if (sections.length < 3) return render(md).html;
   const id = `pt${++tabCount}`;
   const ids = sections.map((x) => slug(x.title));
   return render(intro.join('\n')).html +
-    `<div class="tabs page-tabs"><div class="tablist" role="tablist">${sections.map((x, n) => `<button role="tab" id="${id}-${n}" aria-controls="${ids[n]}" aria-selected="${n === 0}" tabindex="${n === 0 ? 0 : -1}">${esc(x.title)}</button>`).join('')}</div>` +
+    `<div class="tabs page-tabs"><div class="tablist" role="tablist">${sections.map((x, n) => `${x.group && x.group !== sections[n - 1]?.group ? `<span class="tabgroup">${esc(x.group)}</span>` : ''}<button role="tab" id="${id}-${n}" aria-controls="${ids[n]}" aria-selected="${n === 0}" tabindex="${n === 0 ? 0 : -1}">${esc(x.title)}</button>`).join('')}</div>` +
     sections.map((x, n) => `<div class="tabpanel" role="tabpanel" id="${ids[n]}" aria-labelledby="${id}-${n}"${n ? ' hidden' : ''}>${render(x.lines.join('\n')).html}</div>`).join('') + '</div>';
 }
 
@@ -200,16 +212,40 @@ const prepare = (text) => text
   .replaceAll('{{prerelease-note}}', prereleaseNote)
   .replace(/^\{\{example:([\w-]+)\}\}$/gm, (_, n) => exampleHtml(n));
 
-const sources = readdirSync(docs).filter((x) => x.endsWith('.md')).map((f) => [f.replace(/\.md$/, ''), join(docs, f)]);
-sources.push(['runner', join(root, 'RUN-ANYWHERE.md')]); // one source for the guide, on GitHub and on the site
-sources.push(['versions', join(root, 'CHANGELOG.md')]);
-for (const [name, file] of sources) {
-  let md = prepare(readFileSync(file, 'utf8'));
-  if (name === 'versions') md = md.replace(/^(What changed[^\n]*\n)/m, `$1\n${versionsTable}\n`);
+// A page = its own markdown (each ## section is a tab) + more tabs taken from other files (their headings go one level down)
+const PAGES = {
+  'index': { file: join(docs, 'index.md') },
+  'getting-started': { file: join(docs, 'getting-started.md') },
+  'create': { file: join(docs, 'create.md'), tabs: [['Inspector', join(docs, 'inspector.md')], ['Recorder', join(docs, 'recorder.md')], ['Agent', join(docs, 'agent.md')]] },
+  'tests': { file: join(docs, 'tests.md'), tabs: [['Reports', join(docs, 'reports.md')]] },
+  'test-data': { file: join(docs, 'test-data.md') },
+  'ci': { file: join(docs, 'ci.md'), tabs: [['Runner reference', join(root, 'RUN-ANYWHERE.md'), 'After a run']] }, // one source, on GitHub and on the site
+  'reference': { file: join(docs, 'reference.md'), tabs: [['Steps', join(docs, 'steps.md')], ['Words', join(docs, 'words.md')], ['Examples', join(docs, 'examples.md')], ['Videos', join(docs, 'videos.md')]] },
+  'download': { file: join(docs, 'download.md'), tabs: [['Versions', join(root, 'CHANGELOG.md')]] },
+};
+/** Another file as one tab: its title line goes, every other heading goes one level down (code blocks are left alone). */
+function asTab(md) {
+  let fence = false;
+  return md.replace(/\r/g, '').split('\n').map((l) => {
+    if (/^```/.test(l)) fence = !fence;
+    if (fence || !/^#{1,5} /.test(l)) return l;
+    return /^# /.test(l) ? '<!--title-->' : '#' + l;
+  }).filter((l) => l !== '<!--title-->').join('\n').replace(/<!--\s*notabs\s*-->\n?/, '');
+}
+for (const [name, cfg] of Object.entries(PAGES)) {
+  let md = prepare(readFileSync(cfg.file, 'utf8'));
+  for (const [title, file, group] of cfg.tabs ?? []) {
+    let body = asTab(prepare(readFileSync(file, 'utf8')));
+    if (title === 'Versions') body = body.replace(/^(What changed[^\n]*\n)/m, `$1\n${versionsTable}\n`);
+    md += `\n## ${title}${group ? ` <!-- group: ${group} -->` : ''}\n\n${body}\n`;
+  }
   const html = name === 'index' ? render(md).html : pageWithTabs(md);
   const title = NAV.find(([n]) => n === name)?.[1] ?? name;
   writeFileSync(join(out, `${name}.html`), page(name, title, html));
 }
+// The old addresses keep working: each goes to the tab it became
+for (const [old, target] of Object.entries(MOVED))
+  writeFileSync(join(out, `${old}.html`), `<!doctype html><meta charset="utf-8"><title>Moved</title><meta http-equiv="refresh" content="0; url=${target}"><link rel="canonical" href="${target}"><script>location.replace(${JSON.stringify(target)})</script><p>This page moved to <a href="${target}">${target}</a>.</p>`);
 cpSync(join(docs, 'media'), join(out, 'media'), { recursive: true });
 writeFileSync(join(out, '.nojekyll'), '');
 console.log(`site/ built: ${readdirSync(out).filter((x) => x.endsWith('.html')).length} pages, version ${version}`);
