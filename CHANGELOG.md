@@ -4,6 +4,11 @@
 
 What changed in each version of NomadQA. The newest is on top. The current extension version is **{{version}}**.
 
+## [1.1.0] · your own login domain
+
+**Logins**
+- The **Login page** of a login (Settings › Logins) now has **+ Add your domain address**: type your own My Domain, such as `https://yourcompany.my.salesforce.com`, and keep it with the login. The runner already took any address in `SF_LOGIN_PAGE`.
+
 ## [1.0.0] · the first release
 
 NomadQA: testing for Salesforce, as a browser extension (Chrome and Edge) and a headless runner for CI. No packages.
