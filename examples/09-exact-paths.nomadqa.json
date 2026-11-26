@@ -1,0 +1,64 @@
+{
+  "nomadqa": "test",
+  "version": 1,
+  "name": "Find things by their exact path",
+  "group": "Advanced",
+  "cleanup": true,
+  "steps": [
+    {
+      "action": "data",
+      "recipe": {
+        "name": "One account",
+        "nodes": [
+          {
+            "id": "a",
+            "object": "Account",
+            "count": 1,
+            "rules": {
+              "Name": {
+                "kind": "pattern",
+                "value": "NomadQA Paths {0000}"
+              },
+              "Industry": {
+                "kind": "fixed",
+                "value": "Energy"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "action": "open",
+      "record": "{{a-1}}"
+    },
+    {
+      "action": "expect",
+      "kind": "element",
+      "css": "//lightning-formatted-text[normalize-space()=\"Energy\"]"
+    },
+    {
+      "action": "expect",
+      "kind": "element",
+      "css": "document.querySelector(\"records-highlights2\")"
+    },
+    {
+      "action": "click",
+      "css": "//button[@name=\"Edit\"]"
+    },
+    {
+      "action": "fill",
+      "css": "//input[@name=\"Phone\"]",
+      "value": "555 0199"
+    },
+    {
+      "action": "click",
+      "label": "Save"
+    },
+    {
+      "action": "expect",
+      "kind": "toast",
+      "value": "was saved"
+    }
+  ]
+}

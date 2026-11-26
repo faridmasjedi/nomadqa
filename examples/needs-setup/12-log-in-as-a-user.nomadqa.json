@@ -1,0 +1,31 @@
+{
+  "nomadqa": "test",
+  "version": 1,
+  "name": "What another user sees",
+  "group": "Permissions",
+  "cleanup": true,
+  "steps": [
+    {
+      "action": "open",
+      "path": "/lightning/o/Account/list"
+    },
+    {
+      "action": "loginas",
+      "user": "Ann Lee"
+    },
+    {
+      "action": "open",
+      "path": "/lightning/o/Account/list"
+    },
+    {
+      "action": "expect",
+      "kind": "no-button",
+      "value": "New"
+    },
+    {
+      "action": "expect",
+      "kind": "no-text",
+      "value": "Insufficient Privileges"
+    }
+  ]
+}

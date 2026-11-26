@@ -1,0 +1,44 @@
+{
+  "nomadqa": "test",
+  "version": 1,
+  "name": "Waits, keys and steps that may be skipped",
+  "group": "Smoke",
+  "cleanup": true,
+  "steps": [
+    {
+      "action": "open",
+      "path": "/lightning/o/Account/list"
+    },
+    {
+      "action": "wait",
+      "until": "load"
+    },
+    {
+      "action": "click",
+      "label": "A button that does not exist",
+      "optional": true,
+      "timeout": 2000
+    },
+    {
+      "action": "click",
+      "label": "New"
+    },
+    {
+      "action": "wait",
+      "text": "New Account"
+    },
+    {
+      "action": "click",
+      "label": "Cancel"
+    },
+    {
+      "action": "wait",
+      "ms": 500
+    },
+    {
+      "action": "expect",
+      "kind": "no-text",
+      "value": "New Account"
+    }
+  ]
+}
