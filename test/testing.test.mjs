@@ -665,3 +665,56 @@ test('login with an SFDX auth URL: token exchange, then the frontdoor link', asy
     /Log in/
   );
 });
+
+test('a test that starts with Log in needs no session before it: the connection is made after the login', async () => {
+  const connected = [];
+  const realSf = {
+    host: 'acme.my.salesforce.com',
+    query: async (q) => (connected.push(q), [{ Id: '001X' }]),
+    rest: async (method, path) => (connected.push(decodeURIComponent(path)), { records: [{ Id: '001X' }], totalSize: 1 }),
+    facts: async () => ({}),
+  };
+  const opened = [];
+  const driver = {
+    open: async (u) => opened.push(u),
+    load: async (u) => opened.push(u),
+    settle: async () => {},
+    url: async () => 'https://acme.lightning.force.com/lightning/page/home',
+    step: async () => ({ ok: true }),
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ access_token: 'SID', instance_url: 'https://acme.my.salesforce.com', id: 'https://x/id/00D/005U' }),
+  });
+  try {
+    const out = await runTest(
+      {
+        name: 'Starts at the login page',
+        steps: [
+          { action: 'login', login: 'rep' },
+          { action: 'query', soql: 'SELECT Id FROM Account LIMIT 1', count: 1 },
+          { action: 'open', path: '/lightning/o/Account/list' },
+        ],
+      },
+      {
+        driver,
+        sf: null,
+        connect: async () => realSf,
+        logins: { rep: { authUrl: 'force://PlatformCLI::R@acme.my.salesforce.com' } },
+      }
+    );
+    assert.equal(out.ok, true, JSON.stringify(out.results.map((r) => r.message)));
+    assert.ok(connected.some((q) => /FROM Account/.test(q)), 'the query ran on the connection made after the login');
+    assert.match(opened.at(-1), /^https:\/\/acme\.my\.salesforce\.com\/lightning\/o\/Account\/list$/);
+    // Before a login there is no session: a clear message, not a crash
+    const early = await runTest(
+      { name: 'No login first', steps: [{ action: 'query', soql: 'SELECT Id FROM Account', count: 1 }] },
+      { driver, sf: null, connect: async () => realSf }
+    );
+    assert.equal(early.ok, false);
+    assert.match(early.results[0].message, /start the test with a Log in step/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
