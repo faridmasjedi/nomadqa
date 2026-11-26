@@ -40,7 +40,17 @@ The records are tried in the org inside one Apex transaction that is **rolled ba
 
 ## Find & clone
 
-Find records (words in the name, or a condition), pick them, add objects under them, choose how many copies and a pattern for their names. They become a preview like a plan's. Cloning into another org leaves out fields it lacks and links to records of the first org.
+Copy **real records — and what is under them — as test data**. Nothing changes in the org until you create.
+
+![Find and clone](media/gif/clone.gif)
+
+1. **Find.** Choose an object, then type words in the name — or a condition such as `Industry = 'Energy' AND CreatedDate = THIS_YEAR` — and press **Find**. It only reads, and shows the 200 changed last.
+2. **Pick** the records to copy (**Pick all**, **None**). The table has Filters, Columns, Copy, CSV and JSON, like every table in NomadQA.
+3. **Clone.** Choose **the records under them** (for example *Contact · AccountId*): they are copied one level down and linked to the new parent. Choose **Copies of each** (1 to 50) and, if you like, a **pattern for the names**, optionally with the copied value added (`NomadQA clone Aperture Science`), so the copies are easy to find and delete. Every writable field is copied except those that must be unique.
+4. **Preview.** The copies and what is under them appear as a table, like a plan's: type in a cell to change a value. **Check** tries them in the org and rolls everything back: what would fail is listed with Salesforce's own message. An org's **duplicate rule** can stop copies; leave those out, or tick **Save even when a duplicate rule matches**.
+5. **Create** (you type the org's name first). The records are kept as a **batch**: **Batches** deletes them, children first. The preview offers the same ways to use them as a plan: CSV files, an `@IsTest` factory class, a recipe.
+
+Cloning into **another org** leaves out fields it lacks, and links to records of the first org.
 
 ## Batches
 

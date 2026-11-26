@@ -2,7 +2,7 @@
 
 Run each automation user's tests on every change, and get a report to debug when one breaks. **New here? Start with the Quick start tab.**
 
-## Quick start
+## Quick start <!-- group: Start here -->
 
 One automation user, from nothing to a result in GitHub Actions. About 15 minutes. Everything else on this page is for more users, other CI systems and stores for secrets.
 
@@ -66,7 +66,7 @@ Try it on your computer first: put `SF_AUTH_URL=force://…` in a file named `.e
 
 **Then:** more users → *GitHub Actions* (one job per user) · another CI → *Other CI* · secrets in AWS or Google Cloud → *Secrets* · what each setting means → *Logins reference*.
 
-## Create and store
+## Create and store <!-- group: Start here -->
 
 
 You have automation users — each with its own profile, permission sets and licence — and a group of tests for each. The whole flow:
@@ -130,7 +130,7 @@ Run the group once in NomadQA (**Run all**) before you commit: a test that passe
 
 
 
-## Runner in your repo
+## Runner in your repo <!-- group: Start here -->
 
 
 The runner is two things: `runner/run.mjs` and the folder `extension/core/`. No packages. Choose how to bring them in.
@@ -177,7 +177,7 @@ No files in your repository; the job fetches NomadQA each time. Pin a version wi
 :::end
 
 
-## Secrets
+## Secrets <!-- group: Set it up -->
 
 
 CI needs each user's credentials. The runner reads them from **environment variables**: whatever store you use only has to put them there when the job starts.
@@ -315,7 +315,7 @@ See *Other CI* for the pipelines.
 :::end
 
 
-## GitHub Actions
+## GitHub Actions <!-- group: Set it up -->
 
 
 `.github/workflows/nomadqa.yml`. One job per automation user, all at the same time, each in its own **Environment** with its own secrets:
@@ -417,7 +417,7 @@ A test that logs in runs in a browser context of its own, so the next test is no
 
 
 
-## Other CI
+## Other CI <!-- group: Set it up -->
 
 
 The same job in other systems: pick the user's secret, run the folder, keep the folder. `USER_NAME` is the user's name (`sales-rep`); see *Secrets › CI variables* for the one-line mapping to `SF_AUTH_URL`.
@@ -580,7 +580,7 @@ The `post_build` phase runs even when the tests failed, so the reports reach S3 
 :::end
 
 
-## Reports and debugging
+## Reports and debugging <!-- group: After a run -->
 
 
 **When a test fails, the run is not lost.** The runner writes its reports before it exits with `1`; your pipeline only has to keep them (`if: always()` in GitHub Actions).
@@ -616,7 +616,7 @@ The `post_build` phase runs even when the tests failed, so the reports reach S3 
 Put the **run id** in the path so runs never overwrite each other, keep failed runs longer than passed ones, and remember that reports can show screenshots of your org's data: keep them where only the team can read, and use a sandbox.
 
 
-## Logins reference
+## Logins reference <!-- group: After a run -->
 
 Where the runner looks for a login, and in which order. Use any one way.
 
@@ -641,7 +641,7 @@ The runner never needs a `.env` file. It reads **environment variables**; a `.en
 - **One job per user** (parallel jobs, one runner machine each): each job gets only its own user's secrets as variables, or writes its own `.env` from its own secret. In GitHub Actions give each user an Environment with a secret `NOMADQA_ENV` holding that user's lines, and in the job `printf '%s\n' "$NOMADQA_ENV" > .env`. Each job has its own machine, so the files never meet.
 - **One job, many users, tests side by side** (`--parallel 3`): put every user's variables in one place (the same `.env`, `NOMADQA_LOGINS` or per-user variables) and let each test start with `Log in`. Each test runs in its own browser context, so users do not mix.
 
-## Troubleshooting
+## Troubleshooting <!-- group: After a run -->
 
 
 | You see | Do |

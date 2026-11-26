@@ -30,6 +30,7 @@ Recorded in a real scratch org with the real extension: every video is a whole j
 
 | Video | Shows |
 | --- | --- |
+| [**Find & clone**](media/video/10-find-and-clone.mp4) (1:20) | find records · pick · clone with the contacts under them · 3 copies · a name pattern · preview · **Check** (a duplicate rule stops them) · **Save even when a duplicate rule matches** · **Create** · **Batches** · delete |
 | [**Test data**](media/video/06-test-data.mp4) (1:30) | a plan with children · rules · preview · **Check** (rolled back) · **Create** (type the org's name) · **Batches** · delete |
 
 ## One feature at a time (GIFs)
@@ -52,6 +53,7 @@ Recorded in a real scratch org with the real extension: every video is a whole j
 | Test data plan | [test-data](media/gif/test-data.gif) |
 | Check and create | [check-and-create](media/gif/check-and-create.gif) |
 | Batches | [batches](media/gif/batches.gif) |
+| Find & clone | [clone](media/gif/clone.gif) |
 | Agent | [agent](media/gif/agent.gif) |
 | Start from the login page | [login-from-the-login-page](media/gif/login-from-the-login-page.gif) |
 | Both ways to run a login-first test | [login-both-options](media/gif/login-both-options.gif) |
