@@ -3,8 +3,9 @@
 # 1. Every merge into main keeps ONE draft release up to date for the version in extension/manifest.json
 #    (title "NomadQA <version>", notes = the top section of CHANGELOG.md, pointing at the newest commit of main).
 #    Nothing is public: it is a draft, and the tag does not exist yet.
-# 2. When you PUBLISH the draft, GitHub makes the tag (nomadqa-v<version>) at that commit, and this workflow builds the
-#    zips, attaches them to the release, and has the website rebuilt, so the Download and Versions pages show it.
+# 2. When you PUBLISH the draft, GitHub makes the tag (nomadqa-v<version>) at that commit. The publish job then WAITS
+#    for an approval (the `release` environment). Once approved it builds the zips, attaches them to the release, and has
+#    the website rebuilt, so the Download and Versions pages show it.
 #
 # To start the next release: bump the version in extension/manifest.json and package.json (and add its section to the
 # top of CHANGELOG.md) in a pull request. A version that is already published is never drafted again.
@@ -56,6 +57,9 @@ jobs:
   publish:
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
+    # Waits for an approval: Settings › Environments › release › Required reviewers. Nothing below runs (no zips, no
+    # website update) until a reviewer approves the run on its Actions page.
+    environment: release
     steps:
       - uses: actions/checkout@v4
         with:
