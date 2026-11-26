@@ -109,19 +109,43 @@ function pageWithTabs(md) {
     sections.map((x, n) => `<div class="tabpanel" role="tabpanel" id="${ids[n]}" aria-labelledby="${id}-${n}"${n ? ' hidden' : ''}>${render(x.lines.join('\n')).html}</div>`).join('') + '</div>';
 }
 
-// ---- downloads: the zips are built with the site, so the links always match this version
-const version = JSON.parse(readFileSync(join(root, 'extension/manifest.json'), 'utf8')).version;
-mkdirSync(join(out, 'download'), { recursive: true });
-execFileSync('node', [join(root, 'scripts/pack.mjs'), join(out, 'download')], { stdio: 'ignore' });
-const sha = {};
-for (const [k, f] of [['ext', 'nomadqa-extension'], ['runner', 'nomadqa-runner']]) {
-  sha[k] = createHash('sha256').update(readFileSync(join(out, 'download', `${f}.zip`))).digest('hex');
-  copyFileSync(join(out, 'download', `${f}.zip`), join(out, 'download', `${f}-${version}.zip`));
+// ---- releases: the published GitHub Releases are the source of truth for "the latest version" and its downloads.
+// (Before the first release, and in a local build with no network, the site offers the current build as a preview.)
+async function publishedReleases() {
+  try {
+    const raw = process.env.NOMADQA_RELEASES_FILE
+      ? JSON.parse(readFileSync(process.env.NOMADQA_RELEASES_FILE, 'utf8'))
+      : await (await fetch('https://api.github.com/repos/faridmasjedi/nomadqa/releases?per_page=50', { headers: { accept: 'application/vnd.github+json', ...(process.env.GH_TOKEN ? { authorization: `Bearer ${process.env.GH_TOKEN}` } : {}) } })).json();
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((r) => !r.draft && /^nomadqa-v\d+\.\d+\.\d+$/.test(r.tag_name))
+      .map((r) => ({ version: r.tag_name.replace(/^nomadqa-v/, ''), date: (r.published_at ?? '').slice(0, 10), pre: Boolean(r.prerelease), assets: Object.fromEntries((r.assets ?? []).map((a) => [a.name, { url: a.browser_download_url, digest: String(a.digest ?? '').replace(/^sha256:/, '') }])) }));
+  } catch {
+    return [];
+  }
 }
+const manifestVersion = JSON.parse(readFileSync(join(root, 'extension/manifest.json'), 'utf8')).version;
+const releases = await publishedReleases();
+const latest = releases[0] ?? null;
+const version = latest ? latest.version : manifestVersion;
+const previewWanted = !releases.some((r) => r.version === manifestVersion); // the build on main, not released yet
+const LATEST = 'https://github.com/faridmasjedi/nomadqa/releases/latest/download';
+const sha = { ext: '', runner: '' };
+mkdirSync(join(out, 'download'), { recursive: true });
+if (previewWanted) {
+  execFileSync('node', [join(root, 'scripts/pack.mjs'), join(out, 'download')], { stdio: 'ignore' });
+  for (const [k, f] of [['ext', 'nomadqa-extension'], ['runner', 'nomadqa-runner']])
+    if (!latest) sha[k] = createHash('sha256').update(readFileSync(join(out, 'download', `${f}.zip`))).digest('hex');
+}
+if (latest) {
+  sha.ext = latest.assets['nomadqa-extension.zip']?.digest || '(see the release page)';
+  sha.runner = latest.assets['nomadqa-runner.zip']?.digest || '(see the release page)';
+}
+// a download link in the docs: the latest release when there is one, else the preview build of this site
+const downloadLink = (name) => (latest ? `${LATEST}/${name}` : `download/${name}`);
 
-// ---- every version: its zips are built from git (a commit or a tag), so each version can be downloaded
+// ---- older versions: their zips are built from git (a commit), so each can be downloaded
 const versions = JSON.parse(readFileSync(join(docs, 'versions.json'), 'utf8'));
-const released = versions.some((v) => v.version === version && /^nomadqa-v/.test(v.ref));
 const gitOut = (args, opts = {}) => execFileSync('git', args, { cwd: root, stdio: ['ignore', 'pipe', 'ignore'], ...opts });
 function versionZips(v) {
   const dir = join(out, 'download', 'versions'); mkdirSync(dir, { recursive: true });
@@ -140,14 +164,19 @@ function versionZips(v) {
   rmSync(tmp, { recursive: true, force: true });
   return made;
 }
-const versionRows = [`<tr><td><b>${released ? version : `${version} → 1.0.0`}</b><br><em>${released ? 'latest' : 'preview, in review'}</em></td><td>now</td><td><a href="download/nomadqa-extension.zip">extension</a> · <a href="download/nomadqa-runner.zip">runner</a></td></tr>`];
+const links = (ext, runner) => `${ext ? `<a href="${ext}">extension</a>` : '—'}${runner ? ` · <a href="${runner}">runner</a>` : ''}`;
+const versionRows = [];
+if (previewWanted)
+  versionRows.push(`<tr><td><b>${manifestVersion}</b><br><em>preview of the next release, in review</em></td><td>now</td><td>${links('download/nomadqa-extension.zip', 'download/nomadqa-runner.zip')}</td></tr>`);
+for (const r of releases)
+  versionRows.push(`<tr><td><b>${r.version}</b><br><em>${r === latest ? 'latest' : 'release'}${r.pre ? ' (pre-release)' : ''}</em></td><td>${r.date}</td><td>${links(r.assets[`nomadqa-extension-${r.version}.zip`]?.url, r.assets[`nomadqa-runner-${r.version}.zip`]?.url)}</td></tr>`);
 for (const v of versions) {
-  if (v.version === version && released) continue;
+  if (releases.some((r) => r.version === v.version)) continue;
   const z = versionZips(v);
-  versionRows.push(`<tr><td><b>${v.version}</b><br><em>${v.note ?? 'pre-release'}</em></td><td>${v.date ?? ''}</td><td>${z.ext ? `<a href="${z.ext}">extension</a>` : '—'}${z.runner ? ` · <a href="${z.runner}">runner</a>` : ''}</td></tr>`);
+  versionRows.push(`<tr><td><b>${v.version}</b><br><em>${v.note ?? 'pre-release'}</em></td><td>${v.date ?? ''}</td><td>${links(z.ext, z.runner)}</td></tr>`);
 }
 const versionsTable = `<div class="table"><table><thead><tr><th>Version</th><th>Date</th><th>Download</th></tr></thead><tbody>${versionRows.join('')}</tbody></table></div>`;
-const prereleaseNote = released ? '' : `> **Pre-release build.** The first release, **1.0.0**, is published after review. This is the build that becomes it.`;
+const prereleaseNote = latest ? '' : `> **Pre-release build.** The first release is published after review. This is the build that becomes it.`;
 
 // ---- examples: each file as the steps a person reads, with the file to download
 mkdirSync(join(out, 'examples'), { recursive: true });
@@ -166,6 +195,7 @@ const exampleHtml = (name) => {
 };
 const prepare = (text) => text
   .replaceAll('docs/media/', 'media/').replaceAll('](docs/', '](')
+  .replaceAll('](download/nomadqa-extension.zip)', `](${downloadLink('nomadqa-extension.zip')})`).replaceAll('href="download/nomadqa-extension.zip"', `href="${downloadLink('nomadqa-extension.zip')}"`).replaceAll('href="download/nomadqa-runner.zip"', `href="${downloadLink('nomadqa-runner.zip')}"`)
   .replaceAll('{{version}}', version).replaceAll('{{sha:ext}}', sha.ext).replaceAll('{{sha:runner}}', sha.runner)
   .replaceAll('{{prerelease-note}}', prereleaseNote)
   .replace(/^\{\{example:([\w-]+)\}\}$/gm, (_, n) => exampleHtml(n));
