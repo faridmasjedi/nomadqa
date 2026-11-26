@@ -548,6 +548,8 @@ export function testsFromFile(text) {
   }
   const j = JSON.parse(t);
   const tests = j.nomadqa === 'group' && Array.isArray(j.tests) ? j.tests : [j];
+  // a test inside a group file is a test even when its own marker is missing
+  if (j.nomadqa === 'group') for (const x of tests) if (x && typeof x === 'object') x.nomadqa ??= 'test';
   for (const x of tests)
     if (x?.nomadqa !== 'test' || !Array.isArray(x.steps)) throw new Error('Not a NomadQA test file.');
   return tests;

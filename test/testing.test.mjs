@@ -718,3 +718,9 @@ test('a test that starts with Log in needs no session before it: the connection 
     globalThis.fetch = realFetch;
   }
 });
+
+test('a group file: its tests count as tests even without their own marker', () => {
+  const tests = testsFromFile(JSON.stringify({ nomadqa: 'group', name: 'g', tests: [{ name: 'a', steps: [{ action: 'wait', ms: 1 }] }] }));
+  assert.equal(tests[0].nomadqa, 'test');
+  assert.throws(() => testsFromFile(JSON.stringify({ name: 'a', steps: [] })), /Not a NomadQA test file/);
+});
