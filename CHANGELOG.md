@@ -17,6 +17,9 @@ The first release, being reviewed. Test data, testing (Inspector, Recorder, Test
 - **`.env` files**: the runner reads `.env` (or `--env-file`) in the folder you run from, so the same variable names work on your computer and in CI. `.env` is ignored by git; `.env.example` shows the names.
 - A guide for **many automation users, a group of tests for each**: create the tests as the user, store the group, one CI job per user with its secrets (GitHub Environments, AWS, Google Cloud, Azure Key Vault, Vault, GitLab, Jenkins, Azure DevOps…), and how a QA debugs a failed run from its report.
 
+**New: project files**
+- **MIT licence**, a **security policy** (`SECURITY.md`, private reporting), a **Words** page that explains *group* (step group, test group, group file) and *login*, and a branch-protection ruleset for `main` (`.github/rulesets/protect-main.json`, `CODEOWNERS`).
+
 **New: website, downloads, examples**
 - **Website** (GitHub Pages) with 15 pages: Home, Start, Inspector, Recorder, Tests, Reports, Test data, Agent, Runner, CI, Examples, Steps, Videos, Download, Versions — with tabs where there are alternatives.
 - **Download page**: `nomadqa-extension.zip` and `nomadqa-runner.zip` (unzip it in your repository and run `node nomadqa/runner/run.mjs`: no clone, no packages), with checksums. A release workflow publishes both with these notes.

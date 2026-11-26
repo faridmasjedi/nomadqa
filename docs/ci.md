@@ -1,8 +1,73 @@
 # CI, secrets and reports
 
-Run each automation user's tests on every change, and get a report to debug when one breaks.
+Run each automation user's tests on every change, and get a report to debug when one breaks. **New here? Start with the Quick start tab.**
 
-## How it works
+## Quick start
+
+One automation user, from nothing to a result in GitHub Actions. About 15 minutes. Everything else on this page is for more users, other CI systems and stores for secrets.
+
+### 1 · Create the tests as that user
+
+Log in to the sandbox as the automation user, open NomadQA (the tab on the right edge of the page), build a test, set its **Group** to the user's name (`sales-rep`) and press the group's **Download**. More: *Create and store*.
+
+### 2 · Put the runner in your repository
+
+Download `nomadqa-runner.zip` ([Download](download.md)), unzip it in the repository root and commit the `nomadqa` folder it makes. More: *Runner in your repo*.
+
+### 3 · Commit the tests
+
+Save the downloaded file as `tests/nomadqa/sales-rep/sales-rep.nomadqa-group.json` and commit it.
+
+### 4 · Give CI the user's login
+
+Get the user's SFDX auth URL once, signed in as that user:
+
+```sh
+sf org login web --alias sales-rep --instance-url https://test.salesforce.com
+sf org display --verbose --json --target-org sales-rep      # copy result.sfdxAuthUrl
+```
+
+Keep it in a repository secret named `SF_AUTH_URL` (Settings › Secrets and variables › Actions › New repository secret). More: *Secrets*.
+
+### 5 · Add the workflow
+
+`.github/workflows/nomadqa.yml`:
+
+```yaml
+name: nomadqa
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run the tests as sales-rep
+        env:
+          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        run: node nomadqa/runner/run.mjs tests/nomadqa/sales-rep --out nomadqa-reports
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nomadqa-reports
+          path: nomadqa-reports/
+```
+
+### 6 · Push, and open the Actions tab
+
+Green: the tests passed. Red: open the run, download the artifact `nomadqa-reports` and open `report.html` — it shows the step that failed, why, and a picture. More: *Reports and debugging*.
+
+Try it on your computer first: put `SF_AUTH_URL=force://…` in a file named `.env` and run `node nomadqa/runner/run.mjs tests/nomadqa/sales-rep` (never commit `.env`).
+
+**Then:** more users → *GitHub Actions* (one job per user) · another CI → *Other CI* · secrets in AWS or Google Cloud → *Secrets* · what each setting means → *Logins reference*.
+
+## Create and store
+
 
 You have automation users — each with its own profile, permission sets and licence — and a group of tests for each. The whole flow:
 
@@ -33,7 +98,7 @@ Test data comes from the sandbox or from the tests' own `data` steps. Both run w
 
 The runner's exit code: `0` all passed · `1` a test failed · `2` it could not run (no tests, no login, no Chrome).
 
-## Create the tests
+### Create the tests
 
 Do this once per automation user, in a sandbox.
 
@@ -63,7 +128,10 @@ Then put them in a group named after the user, and download it:
 
 Run the group once in NomadQA (**Run all**) before you commit: a test that passes there passes in CI, because both use the same engine.
 
+
+
 ## Runner in your repo
+
 
 The runner is two things: `runner/run.mjs` and the folder `extension/core/`. No packages. Choose how to bring them in.
 
@@ -108,7 +176,9 @@ No files in your repository; the job fetches NomadQA each time. Pin a version wi
 ```
 :::end
 
+
 ## Secrets
+
 
 CI needs each user's credentials. The runner reads them from **environment variables**: whatever store you use only has to put them there when the job starts.
 
@@ -127,29 +197,6 @@ sf org display --verbose --json --target-org sales-rep      # result.sfdxAuthUrl
 **A login page that asks to verify the user cannot be passed.** Salesforce may send an email code or ask for multi-factor authentication when a user logs in from a machine it does not know, and a CI machine is always new. A username and password therefore works only where Salesforce does not ask: the CI's IP range is trusted (Setup › Network Access), or the test users are exempt from verification as your security team allows. An **SFDX auth URL does not ask**, so prefer it. A run never waits for a code by itself: it stops at once with a clear message and a screenshot of the page (`verification.jpg` in the reports). For a one-off test on your own computer you can give the code: `--code-file code.txt` makes the run wait up to 15 minutes for the emailed code to appear in that file. (NomadQA handles Salesforce's two-step login page — the username, then the password — and stops with a clear message at a verification page.)
 
 An auth URL (a refresh token) and a password both **let anyone act as that user**. Keep them in a secret store; never in the repository, a log or a test file. Salesforce allows only a few refresh tokens per user and connected app (by default 5; the oldest is revoked), so log each user in once and keep the URL.
-
-### How the runner finds a login
-
-The runner never needs a `.env` file. It reads **environment variables**; a `.env` file is only one way to set them (handy on your own computer). Where the logins can come from — use any one:
-
-| Way | For | How |
-| --- | --- | --- |
-| **Environment variables** (CI secrets) | CI | `env:` in the job: `SF_AUTH_URL`, or `SF_USERNAME` + `SF_PASSWORD` + `SF_LOGIN_PAGE`. Nothing is written to disk |
-| **A `.env` file** | your computer, or one secret holding many lines | `.env` in the folder you run from, or `--env-file path`. Read at the start; a variable already set wins |
-| **A JSON file** | many users in one file | `--logins logins.json`: `{ "sales-rep": { "authUrl": "force://…" }, "agent": { "username": "…", "password": "…", "url": "https://test.salesforce.com" } }` |
-| **One JSON variable** | many users in one secret | `NOMADQA_LOGINS` with the same JSON |
-| **Command-line options** | one run | `--auth-url force://…` (the user the run is), `--login-url` (a one-time login link) |
-| **The Salesforce CLI** | your computer | `--org my-alias` (the CLI's own login) |
-| **The extension's Settings › Logins** | the extension | logins saved in the browser (not the runner) |
-
-**Who the run is.** What you give on the command line wins over the environment (or a `.env` file): `--login-url`, `--auth-url`, `--as <login>`, `--org`. Otherwise the environment: `NOMADQA_LOGIN_URL`, `SF_AUTH_URL`, then `SF_USERNAME` + `SF_PASSWORD`. So `--org my-sandbox` always means that org, even if a `.env` holds another `SF_AUTH_URL`. If every test starts with a **Log in** step, no user is needed: each test logs in by itself.
-
-**Who a test is.** A test's `Log in` step names a login (`sales-rep`); the runner looks it up in this order and merges: the JSON file or `NOMADQA_LOGINS`, then the per-user variables `NOMADQA_AUTH_URL_SALES_REP`, `NOMADQA_USERNAME_SALES_REP` and `NOMADQA_PASSWORD_SALES_REP` (the name is lower-cased and `_` becomes `-`). The test file holds only the name, never the secret.
-
-**Several users in parallel.** Two ways:
-
-- **One job per user** (parallel jobs, one runner machine each): each job gets only its own user's secrets as variables, or writes its own `.env` from its own secret. In GitHub Actions give each user an Environment with a secret `NOMADQA_ENV` holding that user's lines, and in the job `printf '%s\n' "$NOMADQA_ENV" > .env`. Each job has its own machine, so the files never meet.
-- **One job, many users, tests side by side** (`--parallel 3`): put every user's variables in one place (the same `.env`, `NOMADQA_LOGINS` or per-user variables) and let each test start with `Log in`. Each test runs in its own browser context, so users do not mix.
 
 **On your own computer** put the same variables in a file named `.env` in the folder you run from (`--env-file path` for another name). The runner reads it; a variable already set in the environment wins, so in CI the secrets win and no file is needed.
 
@@ -267,7 +314,9 @@ export SF_AUTH_URL="$(printenv "SF_AUTH_URL_$key")"
 See *Other CI* for the pipelines.
 :::end
 
+
 ## GitHub Actions
+
 
 `.github/workflows/nomadqa.yml`. One job per automation user, all at the same time, each in its own **Environment** with its own secrets:
 
@@ -335,7 +384,41 @@ To use the clone or submodule instead of a committed `nomadqa` folder, add that 
 
 Pull requests from forks get no secrets: run on branches of the repository itself, on `workflow_dispatch`, or on a schedule.
 
+### Many users
+
+**Add a user** (the 31st):
+
+1. Create the tests as that user and download the group (*Create the tests*).
+2. Commit it as `tests/nomadqa/<user>/<user>.nomadqa-group.json`.
+3. Create a GitHub Environment `<user>` with `SF_AUTH_URL` (or `SF_USERNAME` and `SF_PASSWORD`).
+4. Add `<user>` to the `matrix.user` list.
+
+**Sizing**
+
+- Start with `max-parallel: 6` and `--parallel 2`, then raise. GitHub limits concurrent jobs by plan (for example 20 on the free plan).
+- Each test opens its own browser context. A busy org or a small runner can miss a message ("toast") check, so back important changes with a `query` step.
+- Each user's job logs in once. Salesforce limits concurrent logins and API calls per org, not per job; spread the schedule if you see throttling.
+- Reports are **per user**: each job has its own `report.html`, JUnit and pictures. The last job gathers them into one artifact and one summary; the JUnit files can also go to your CI's test tab together.
+
+**One job for several users** (when you prefer one run): keep each user's login outside the tests and let each test start with a `Log in` step that names its user. If **every** test starts that way you need no user for the run at all — each test logs in by itself:
+
+```sh
+NOMADQA_AUTH_URL_SALES_REP=force://…        # the login "sales-rep"
+NOMADQA_AUTH_URL_SERVICE_AGENT=force://…    # the login "service-agent"
+# SF_AUTH_URL=force://…                     # only if some test does not start with a Log in step
+node nomadqa/runner/run.mjs tests/nomadqa --parallel 3 --out nomadqa-reports
+```
+
+```json
+{ "action": "login", "login": "sales-rep" }
+```
+
+A test that logs in runs in a browser context of its own, so the next test is not that user. (`Log in as a user` — Salesforce's Login-As — needs an administrator and is not needed for this flow.)
+
+
+
 ## Other CI
+
 
 The same job in other systems: pick the user's secret, run the folder, keep the folder. `USER_NAME` is the user's name (`sales-rep`); see *Secrets › CI variables* for the one-line mapping to `SF_AUTH_URL`.
 
@@ -496,7 +579,9 @@ phases:
 The `post_build` phase runs even when the tests failed, so the reports reach S3 either way. (CodeBuild's own `artifacts` and `reports` sections are for a build that succeeds; do not rely on them for failed runs.)
 :::end
 
+
 ## Reports and debugging
+
 
 **When a test fails, the run is not lost.** The runner writes its reports before it exits with `1`; your pipeline only has to keep them (`if: always()` in GitHub Actions).
 
@@ -530,38 +615,34 @@ The `post_build` phase runs even when the tests failed, so the reports reach S3 
 
 Put the **run id** in the path so runs never overwrite each other, keep failed runs longer than passed ones, and remember that reports can show screenshots of your org's data: keep them where only the team can read, and use a sandbox.
 
-## Many users
 
-**Add a user** (the 31st):
+## Logins reference
 
-1. Create the tests as that user and download the group (*Create the tests*).
-2. Commit it as `tests/nomadqa/<user>/<user>.nomadqa-group.json`.
-3. Create a GitHub Environment `<user>` with `SF_AUTH_URL` (or `SF_USERNAME` and `SF_PASSWORD`).
-4. Add `<user>` to the `matrix.user` list.
+Where the runner looks for a login, and in which order. Use any one way.
 
-**Sizing**
+The runner never needs a `.env` file. It reads **environment variables**; a `.env` file is only one way to set them (handy on your own computer). Where the logins can come from — use any one:
 
-- Start with `max-parallel: 6` and `--parallel 2`, then raise. GitHub limits concurrent jobs by plan (for example 20 on the free plan).
-- Each test opens its own browser context. A busy org or a small runner can miss a message ("toast") check, so back important changes with a `query` step.
-- Each user's job logs in once. Salesforce limits concurrent logins and API calls per org, not per job; spread the schedule if you see throttling.
-- Reports are **per user**: each job has its own `report.html`, JUnit and pictures. The last job gathers them into one artifact and one summary; the JUnit files can also go to your CI's test tab together.
+| Way | For | How |
+| --- | --- | --- |
+| **Environment variables** (CI secrets) | CI | `env:` in the job: `SF_AUTH_URL`, or `SF_USERNAME` + `SF_PASSWORD` + `SF_LOGIN_PAGE`. Nothing is written to disk |
+| **A `.env` file** | your computer, or one secret holding many lines | `.env` in the folder you run from, or `--env-file path`. Read at the start; a variable already set wins |
+| **A JSON file** | many users in one file | `--logins logins.json`: `{ "sales-rep": { "authUrl": "force://…" }, "agent": { "username": "…", "password": "…", "url": "https://test.salesforce.com" } }` |
+| **One JSON variable** | many users in one secret | `NOMADQA_LOGINS` with the same JSON |
+| **Command-line options** | one run | `--auth-url force://…` (the user the run is), `--login-url` (a one-time login link) |
+| **The Salesforce CLI** | your computer | `--org my-alias` (the CLI's own login) |
+| **The extension's Settings › Logins** | the extension | logins saved in the browser (not the runner) |
 
-**One job for several users** (when you prefer one run): keep each user's login outside the tests and let each test start with a `Log in` step that names its user. If **every** test starts that way you need no user for the run at all — each test logs in by itself:
+**Who the run is.** What you give on the command line wins over the environment (or a `.env` file): `--login-url`, `--auth-url`, `--as <login>`, `--org`. Otherwise the environment: `NOMADQA_LOGIN_URL`, `SF_AUTH_URL`, then `SF_USERNAME` + `SF_PASSWORD`. So `--org my-sandbox` always means that org, even if a `.env` holds another `SF_AUTH_URL`. If every test starts with a **Log in** step, no user is needed: each test logs in by itself.
 
-```sh
-NOMADQA_AUTH_URL_SALES_REP=force://…        # the login "sales-rep"
-NOMADQA_AUTH_URL_SERVICE_AGENT=force://…    # the login "service-agent"
-# SF_AUTH_URL=force://…                     # only if some test does not start with a Log in step
-node nomadqa/runner/run.mjs tests/nomadqa --parallel 3 --out nomadqa-reports
-```
+**Who a test is.** A test's `Log in` step names a login (`sales-rep`); the runner looks it up in this order and merges: the JSON file or `NOMADQA_LOGINS`, then the per-user variables `NOMADQA_AUTH_URL_SALES_REP`, `NOMADQA_USERNAME_SALES_REP` and `NOMADQA_PASSWORD_SALES_REP` (the name is lower-cased and `_` becomes `-`). The test file holds only the name, never the secret.
 
-```json
-{ "action": "login", "login": "sales-rep" }
-```
+**Several users in parallel.** Two ways:
 
-A test that logs in runs in a browser context of its own, so the next test is not that user. (`Log in as a user` — Salesforce's Login-As — needs an administrator and is not needed for this flow.)
+- **One job per user** (parallel jobs, one runner machine each): each job gets only its own user's secrets as variables, or writes its own `.env` from its own secret. In GitHub Actions give each user an Environment with a secret `NOMADQA_ENV` holding that user's lines, and in the job `printf '%s\n' "$NOMADQA_ENV" > .env`. Each job has its own machine, so the files never meet.
+- **One job, many users, tests side by side** (`--parallel 3`): put every user's variables in one place (the same `.env`, `NOMADQA_LOGINS` or per-user variables) and let each test start with `Log in`. Each test runs in its own browser context, so users do not mix.
 
 ## Troubleshooting
+
 
 | You see | Do |
 | --- | --- |
