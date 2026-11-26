@@ -16,3 +16,4 @@ Apply it:
 - With the CLI: `gh api repos/faridmasjedi/nomadqa/rulesets --method POST --input .github/rulesets/protect-main.json`
 
 This is the same ruleset as NomadSF's ("NomadSF: protect main"), without its `studio` check. Notes: the bypass role id `5` is GitHub's *Repository admin* role. After the ruleset is active, direct pushes to `main` stop working for everyone: use pull requests.
+
