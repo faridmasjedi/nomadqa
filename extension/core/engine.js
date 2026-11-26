@@ -3,7 +3,7 @@
 // evaluates the same file through Chrome's DevTools protocol. In the isolated world Lightning's components are plain
 // DOM; the few real shadow roots are walked too.
 (() => {
-  if (globalThis.__nomadqa?.version === 6) return;
+  if (globalThis.__nomadqa?.version === 7) return;
 
   const norm = (s) =>
     String(s ?? '')
@@ -1158,36 +1158,43 @@
           return { ok: true, value: v, message: `${step.as} = “${v}”`, ms: Date.now() - t0 };
         }
         case 'login-form': {
-          // The Salesforce login page: username, password, Log In (the newer page asks for an email first: its
-          // "Log In with Username" link shows the form — the caller asks again after it)
+          // The Salesforce login page. Three shapes: username and password together; the newer page that asks for an
+          // email first (its "Log In with Username" link shows the form); and the two-step form (the username, Log
+          // In, and the password on the next page). Where it needs another page the answer says `link: true`: the
+          // caller asks again.
+          const visibleOf = (sel) => [...document.querySelectorAll(sel)].find(visible);
           const found = await until(
             () => {
-              const u = [...document.querySelectorAll('input#username, input[name="username"]')].find(visible);
-              if (u) return { u };
+              const p = visibleOf('input#password, input[type="password"]');
+              const u = visibleOf('input#username, input[name="username"]');
               const l = [...document.querySelectorAll('a, button')].find(
                 (x) => visible(x) && /^log in with username$/i.test((x.innerText ?? '').trim())
               );
-              return l ? { l } : null;
+              return p || u || l ? { p, u, l } : null;
             },
             timeout,
             'the login page'
           );
-          if (found.l) {
+          if (found.l && !found.u && !found.p) {
             press(found.l);
             return { ok: true, link: true, ms: Date.now() - t0 };
           }
-          // The password box may show a moment after the username
-          const pass = await until(
-            () => [...document.querySelectorAll('input#password, input[type="password"]')].find(visible) ?? null,
-            5000,
-            'the password box on the login page'
-          );
-          setValue(found.u, step.username ?? '');
-          setValue(pass, step.password ?? '');
+          // The password box may show a moment after the username; if it does not, this is the two-step login
+          const pass =
+            found.p ??
+            (await until(
+              () => visibleOf('input#password, input[type="password"]'),
+              2500,
+              'the password box on the login page'
+            ).catch(() => null));
+          if (found.u) setValue(found.u, step.username ?? '');
+          if (pass) setValue(pass, step.password ?? '');
           const go = document.querySelector('#Login, input[type="submit"], button[type="submit"]');
           if (!go) throw new Error('No “Log In” button on the page.');
           press(go);
-          return { ok: true, typed: true, ms: Date.now() - t0 };
+          return pass
+            ? { ok: true, typed: true, ms: Date.now() - t0 }
+            : { ok: true, link: true, ms: Date.now() - t0 }; // the username is sent; the password asks on the next page
         }
         case 'press':
           if (
@@ -1304,7 +1311,7 @@
   }
 
   globalThis.__nomadqa = {
-    version: 6,
+    version: 7,
     run,
     inSetup,
     changes,
